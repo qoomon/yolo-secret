@@ -176,43 +176,41 @@ function copyToClipboard(name: string, text: string | null) {
             <v-divider :thickness="2" style="margin-top: 0.2em;"></v-divider>
         </v-container>
 
-
-        <v-container v-if="!token">
-            <v-card
-                    v-if="!creatSecretResponseModel.token"
-                    width="100%" max-width="400"
-                    class="mx-auto"
-            >
+        <v-container style="width: 100%; max-width: 440px">
+            <v-card class="mx-auto">
                 <v-container>
-                    <v-form @submit.prevent="createSecret">
-                        <v-textarea
-                                v-if="creatSecretRequestModel.type === 'text'"
-                                v-model="creatSecretRequestModel.value"
-                                label="Secret Value"
-                                variant="outlined"
-                                color="primary"
-                                auto-grow="auto-grow"
-                                max-rows="16"
-                                rows="1"
-                                autofocus
-                        >
-                            <template v-slot:append-inner v-if="!creatSecretRequestModel.value">
-                                <v-icon
+                    <!--Create Secret View-->
+                    <template v-if="!token">
+                        <template v-if="!creatSecretResponseModel.token">
+                            <v-form @submit.prevent="createSecret">
+                                <v-textarea
+                                        v-if="creatSecretRequestModel.type === 'text'"
+                                        v-model="creatSecretRequestModel.value"
+                                        label="Secret Value"
+                                        variant="outlined"
                                         color="primary"
-                                        icon="mdi-attachment"
-                                        @click="creatSecretFileInput.click()"
-                                ></v-icon>
-                            </template>
-                        </v-textarea>
+                                        auto-grow="auto-grow"
+                                        max-rows="16"
+                                        rows="1"
+                                        autofocus
+                                >
+                                    <template v-slot:append-inner v-if="!creatSecretRequestModel.value">
+                                        <v-icon
+                                                color="primary"
+                                                icon="mdi-attachment"
+                                                @click="creatSecretFileInput.click()"
+                                        ></v-icon>
+                                    </template>
+                                </v-textarea>
 
-                        <v-file-input
-                                v-show="creatSecretRequestModel.type === 'file'"
-                                ref="creatSecretFileInput"
-                                label="Secret File"
-                                variant="outlined"
-                                color="primary"
-                                prepend-icon=""
-                                @update:model-value="async (files) => {
+                                <v-file-input
+                                        v-show="creatSecretRequestModel.type === 'file'"
+                                        ref="creatSecretFileInput"
+                                        label="Secret File"
+                                        variant="outlined"
+                                        color="primary"
+                                        prepend-icon=""
+                                        @update:model-value="async (files) => {
                             if(files[0]){
                                 creatSecretRequestModel.type = 'file';
                                 creatSecretRequestModel.value = await readFileAsValue(files[0]);
@@ -221,151 +219,137 @@ function copyToClipboard(name: string, text: string | null) {
                                 creatSecretRequestModel.value = null;
                             }
                         }"
-                        ></v-file-input>
+                                ></v-file-input>
 
-                        <v-select
-                                v-model="creatSecretRequestModel.ttl"
-                                :items="ttlSelectionItems"
-                                label="Expiration"
-                                variant="outlined"
-                                color="primary"
-                                density="comfortable"
-                        ></v-select>
+                                <v-select
+                                        v-model="creatSecretRequestModel.ttl"
+                                        :items="ttlSelectionItems"
+                                        label="Expiration"
+                                        variant="outlined"
+                                        color="primary"
+                                        density="comfortable"
+                                ></v-select>
 
-                        <v-text-field
-                                v-model="creatSecretRequestModel.passphrase"
-                                type="password"
-                                label="Passphrase (optional)"
-                                variant="underlined"
-                                color="primary"
-                                density="compact"
-                                passsword="passsword"
-                        ></v-text-field>
+                                <v-text-field
+                                        v-model="creatSecretRequestModel.passphrase"
+                                        type="password"
+                                        suggested="new-password"
+                                        label="Passphrase (optional)"
+                                        variant="underlined"
+                                        color="primary"
+                                        density="compact"
+                                ></v-text-field>
 
-                        <v-btn
-                                type="submit"
-                                color="primary"
-                                variant="elevated"
-                                text="Create Secret"
-                                :disabled="!creatSecretRequestModel.value"
-                        ></v-btn>
-                    </v-form>
-                </v-container>
-            </v-card>
-            <v-card
-                    v-else
-                    width="100%" max-width="512"
-                    class="mx-auto"
-            >
-                <v-container>
-                    <v-text-field
-                            :model-value="creatSecretResponseModel.htmlUrl"
-                            readonly
-                            label="Secret URL"
-                            variant="outlined"
-                            color="primary"
-                    >
-                        <template v-slot:append-inner>
-                            <v-icon
-                                    color="primary"
-                                    icon="mdi-clipboard-text"
-                                    @click="copyToClipboard('Secret URL', creatSecretResponseModel.htmlUrl);"
-                            ></v-icon>
+                                <v-btn
+                                        type="submit"
+                                        color="primary"
+                                        variant="elevated"
+                                        text="Create Secret"
+                                        :disabled="!creatSecretRequestModel.value"
+                                ></v-btn>
+                            </v-form>
                         </template>
-                    </v-text-field>
-
-                    <v-btn
-                            color="primary"
-                            variant="elevated"
-                            text="Dismiss"
-                            @click="creatSecretResponseModel = { token: null, htmlUrl: null}"
-                    ></v-btn>
-                </v-container>
-            </v-card>
-        </v-container>
-
-        <v-container v-else>
-            <v-card
-                    v-if="!getSecretResponseModel.value"
-                    width="100%" max-width="400"
-                    class="mx-auto">
-                <v-container>
-                    <v-form @submit.prevent="getSecret">
-                        <v-text-field
-                                v-model="getSecretRequestModel.passphrase"
-                                type="password"
-                                label="Passphrase (optional)"
-                                variant="underlined"
-                                color="primary"
-                                density="compact"
-                                clearable
-                        ></v-text-field>
-
-                        <v-btn
-                                type="submit"
-                                color="primary"
-                                variant="elevated"
-                                text="Reveal Secret"
-                                @click:.once="getSecret()"
-                        ></v-btn>
-                    </v-form>
-                </v-container>
-            </v-card>
-            <v-card
-                    v-else
-                    width="100%" max-width="400"
-                    class="mx-auto">
-                <v-container>
-                    <v-textarea
-                            v-if="getSecretResponseModel.type === 'text'"
-                            v-model="getSecretResponseModel.value"
-                            readonly
-                            label="Secret Value"
-                            variant="outlined"
-                            color="primary"
-                            max-rows="16"
-                            rows="1"
-                            auto-grow="auto-grow"
-                    >
-                        <template v-slot:append-inner>
-                            <v-icon
+                        <template v-else>
+                            <v-text-field
+                                    :model-value="creatSecretResponseModel.htmlUrl"
+                                    readonly
+                                    label="Secret URL"
+                                    variant="outlined"
                                     color="primary"
-                                    icon="mdi-clipboard-text"
-                                    @click="copyToClipboard('Secret Value', getSecretResponseModel.value);"
-                            ></v-icon>
-                        </template>
-                    </v-textarea>
+                            >
+                                <template v-slot:append-inner>
+                                    <v-icon
+                                            color="primary"
+                                            icon="mdi-clipboard-text"
+                                            @click="copyToClipboard('Secret URL', creatSecretResponseModel.htmlUrl);"
+                                    ></v-icon>
+                                </template>
+                            </v-text-field>
 
-                    <v-text-field
-                            v-if="getSecretResponseModel.type === 'file'"
-                            :model-value="getSecretResponseModel.value?.split('|')[0]"
-                            readonly
-                            label="Secret File"
-                            variant="outlined"
-                            color="primary"
-                    >
-                        <template v-slot:append-inner>
-                            <v-icon
+                            <v-btn
                                     color="primary"
-                                    icon="mdi-download"
-                                    @click="downloadFileValue(getSecretResponseModel.value)"
-                            ></v-icon>
+                                    variant="elevated"
+                                    text="Dismiss"
+                                    @click="creatSecretResponseModel = { token: null, htmlUrl: null}"
+                            ></v-btn>
                         </template>
-                    </v-text-field>
+                    </template>
+                    <!--Reveal Secret View-->
+                    <template v-else>
+                        <template v-if="!getSecretResponseModel.value">
+                            <v-form @submit.prevent="getSecret">
+                                <v-text-field
+                                        v-model="getSecretRequestModel.passphrase"
+                                        type="password"
+                                        suggested="new-password"
+                                        label="Passphrase (optional)"
+                                        variant="underlined"
+                                        color="primary"
+                                        density="compact"
+                                        clearable
+                                ></v-text-field>
 
-                    <v-btn
-                            color="primary"
-                            variant="elevated"
-                            text="Dismiss"
-                            @click="getSecretResponseModel = { value: null, type: 'text' }; token = null;"
-                    ></v-btn>
+                                <v-btn
+                                        type="submit"
+                                        color="primary"
+                                        variant="elevated"
+                                        text="Reveal Secret"
+                                        @click:.once="getSecret()"
+                                ></v-btn>
+                            </v-form>
+                        </template>
+                        <template v-else>
+                            <v-textarea
+                                    v-if="getSecretResponseModel.type === 'text'"
+                                    v-model="getSecretResponseModel.value"
+                                    readonly
+                                    label="Secret Value"
+                                    variant="outlined"
+                                    color="primary"
+                                    max-rows="16"
+                                    rows="1"
+                                    auto-grow="auto-grow"
+                            >
+                                <template v-slot:append-inner>
+                                    <v-icon
+                                            color="primary"
+                                            icon="mdi-clipboard-text"
+                                            @click="copyToClipboard('Secret Value', getSecretResponseModel.value);"
+                                    ></v-icon>
+                                </template>
+                            </v-textarea>
+
+                            <v-text-field
+                                    v-if="getSecretResponseModel.type === 'file'"
+                                    :model-value="getSecretResponseModel.value?.split('|')[0]"
+                                    readonly
+                                    label="Secret File"
+                                    variant="outlined"
+                                    color="primary"
+                            >
+                                <template v-slot:append-inner>
+                                    <v-icon
+                                            color="primary"
+                                            icon="mdi-download"
+                                            @click="downloadFileValue(getSecretResponseModel.value)"
+                                    ></v-icon>
+                                </template>
+                            </v-text-field>
+
+                            <v-btn
+                                    color="primary"
+                                    variant="elevated"
+                                    text="Dismiss"
+                                    @click="getSecretResponseModel = { value: null, type: 'text' }; token = null;"
+                            ></v-btn>
+                        </template>
+                    </template>
                 </v-container>
             </v-card>
         </v-container>
 
         <v-container
-                style="min-width: 100vw; position: absolute; bottom: 0; display: flex; justify-content: space-between;"
-        >
+                style="display: flex;justify-content: space-between; position: absolute; bottom: 0;  min-width: 100vw;">
             <v-btn
                     href="https://github.com/qoomon/yolo-secret"
                     density="compact"
