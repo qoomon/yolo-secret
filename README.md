@@ -1,12 +1,12 @@
 # YOLO-secret
-This is a secret share service.
+This is a web app to share secret in a secure way.
 
 ## Features
-* Secrets are encrypted at rest (aes-256-gcm)
-* Secrets are deleted once they have been read
-* Secrets can be eighter plain **Text** or a **File**
-* Secrets have an expiration time (up to 14 days)
-* Secrets can be protected by a passphrase in additon to the secret id
+- Secrets are deleted once they have been read
+- Secrets can be eighter plain **Text** or a **File**
+- Secrets have an expiration time (up to 14 days)
+- Secrets are encrypted at rest (aes-256-gcm)
+- Secrets can be protected by a passphrase in additon to the secret id
 
 ## Workflow
 - Upload a Secret to create a Secret URL
