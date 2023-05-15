@@ -1,6 +1,8 @@
 # YOLO-secret
 This is a web app to share secret in a secure way.
 
+**[Demo](https://yolo-secret.vercel.app/)**
+
 ## Features
 - Secrets are deleted once they have been read
 - Secrets can be eighter plain **Text** or a **File**
