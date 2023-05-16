@@ -28,21 +28,17 @@ function toggleTheme() {
 
 const snackbar = ref({
     active: false,
+    color: 'success' as 'success' | 'error',
     message: null as string | null,
 });
 
-const token = ref(window.location.hash.substring(1) as string | null)
+const locationHash = ref(window.location.hash.substring(1) as string | null)
 addEventListener("hashchange", () => {
-    token.value = window.location.hash.substring(1);
-    creatSecretResponseModel.value = {
-        token: null,
-        htmlUrl: null,
-    };
+    locationHash.value = window.location.hash.substring(1);
+    creatSecretResponseModel.value = {token: null, htmlUrl: null};
 })
 watchEffect(() => {
-    if (!token.value) {
-        window.location.hash = ''
-    }
+    if (!locationHash.value) window.location.hash = '';
 })
 
 // ----------------------------------------------------------------------------
@@ -51,11 +47,25 @@ watchEffect(() => {
 const creatSecretFileInput = ref()
 
 const creatSecretRequestModel = ref({
-    value: null as string | null,
-    type: 'text' as 'text' | 'file',
+    type: 'text' as ('text' | 'file'),
+    name: null as string | null,
+    data: null as string | null,
     ttl: ttlSelectionItems.find((item) => item.default)?.value,
     passphrase: null as string | null,
 });
+
+async function creatSecretRequestModel_setFile(file) {
+    if (file) {
+        creatSecretRequestModel.value.type = 'file';
+        creatSecretRequestModel.value.data = await readAsDataURL(file);
+        creatSecretRequestModel.value.name = file.name;
+
+    } else {
+        creatSecretRequestModel.value.type = 'text';
+        creatSecretRequestModel.value.data = null;
+    }
+}
+
 const creatSecretResponseModel = ref({
     token: null as string | null,
     htmlUrl: null as string | null,
@@ -66,23 +76,22 @@ async function createSecret() {
         creatSecretResponseModel.value = await axios
             .post('/api/secret', creatSecretRequestModel.value)
             .then((response) => response.data)
+        // clear secret data
+        creatSecretRequestModel.value = {
+            type: 'text' as 'text' | 'file',
+            name: null,
+            data: null,
+            ttl: ttlSelectionItems.find((item) => item.default)?.value,
+            passphrase: null,
+        };
     } catch (e) {
         console.log(e)
         snackbar.value = {
             active: true,
+            color: 'error',
             message: 'Failed to create secret',
         };
-    } finally {
-        creatSecretRequestModel.value = {
-            value: null,
-            type: 'text',
-            ttl: creatSecretRequestModel.value.ttl,
-            passphrase: null,
-        };
-
     }
-
-    creatSecretResponseModel.value.htmlUrl = window.location.origin + '/#' + creatSecretResponseModel.value.token
 }
 
 // ----------------------------------------------------------------------------
@@ -92,8 +101,9 @@ const getSecretRequestModel = ref({
     passphrase: null,
 });
 const getSecretResponseModel = ref({
-    value: null as string | null,
     type: 'file' as 'text' | 'file',
+    data: null as string | null,
+    name: null as string | null,
 });
 
 async function getSecret() {
@@ -106,16 +116,16 @@ async function getSecret() {
                 }
             })
             .then((response) => response.data);
+        // clear secret data
+        getSecretRequestModel.value = {
+            passphrase: null,
+        };
     } catch (e) {
         console.log(e)
         snackbar.value = {
             active: true,
+            color: 'error',
             message: 'Failed to get secret',
-        };
-        token.value = null
-    } finally {
-        getSecretRequestModel.value = {
-            passphrase: null,
         };
     }
 }
@@ -124,8 +134,8 @@ async function getSecret() {
 // --- Utils ---
 // ----------------------------------------------------------------------------
 
-async function readFileAsValue(file: File) {
-    return `${file.name}|` + await new Promise((resolve, reject) => {
+async function readAsDataURL(file: File): Promise<string> {
+    return await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = () => resolve(reader.result as string)
@@ -136,12 +146,10 @@ async function readFileAsValue(file: File) {
     });
 }
 
-function downloadFileValue(fileValue) {
+function downloadUrl(href, download) {
     const a = document.createElement('a')
-    // FILENAME|DATA_URL
-    const fileValueSplit = fileValue.split('|')
-    a.download = fileValueSplit[0];
-    a.href = fileValueSplit[1];
+    a.href = href
+    a.download = download;
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -151,11 +159,13 @@ function copyToClipboard(name: string, text: string | null) {
     navigator.clipboard.writeText(text || '').then(() => {
         snackbar.value = {
             active: true,
+            color: 'success',
             message: `Copied ${name} to clipboard`
         };
     }, () => {
         snackbar.value = {
             active: true,
+            color: 'error',
             message: 'Failed to copy to clipboard',
         };
     });
@@ -165,14 +175,17 @@ function copyToClipboard(name: string, text: string | null) {
 <template>
     <v-app>
         <v-container style="width: 100%; max-width: 464px; padding-top: 2em;">
-            <div style="display: flex; align-items: center;">
-                <img
-                        alt="YOLO Secret App Icon"
-                        src="@/assets/app.png"
-                        style="height: 2.5em; margin-right: 0.5em;"
-                >
-                <h2 class="text-center" style="opacity: 0.6;">YOLO Secret</h2>
-            </div>
+            <a href="/">
+                <div style="display: flex; align-items: center;">
+
+                    <img
+                            alt="YOLO Secret App Icon"
+                            src="@/assets/app.png"
+                            style="height: 2.5em; margin-right: 0.5em;"
+                    >
+                    <h2 class="text-center" style="opacity: 0.6;">YOLO Secret</h2>
+                </div>
+            </a>
             <v-divider :thickness="2" style="margin-top: 0.2em;"></v-divider>
         </v-container>
 
@@ -180,12 +193,12 @@ function copyToClipboard(name: string, text: string | null) {
             <v-card class="mx-auto">
                 <v-container>
                     <!--Create Secret View-->
-                    <template v-if="!token">
+                    <template v-if="!locationHash">
                         <template v-if="!creatSecretResponseModel.token">
                             <v-form @submit.prevent="createSecret">
                                 <v-textarea
                                         v-if="creatSecretRequestModel.type === 'text'"
-                                        v-model="creatSecretRequestModel.value"
+                                        v-model="creatSecretRequestModel.data"
                                         label="Secret Value"
                                         variant="outlined"
                                         color="primary"
@@ -194,7 +207,7 @@ function copyToClipboard(name: string, text: string | null) {
                                         rows="1"
                                         autofocus
                                 >
-                                    <template v-slot:append-inner v-if="!creatSecretRequestModel.value">
+                                    <template v-slot:append-inner v-if="!creatSecretRequestModel.data">
                                         <v-icon
                                                 color="primary"
                                                 icon="mdi-attachment"
@@ -210,15 +223,7 @@ function copyToClipboard(name: string, text: string | null) {
                                         variant="outlined"
                                         color="primary"
                                         prepend-icon=""
-                                        @update:model-value="async (files) => {
-                            if(files[0]){
-                                creatSecretRequestModel.type = 'file';
-                                creatSecretRequestModel.value = await readFileAsValue(files[0]);
-                            } else {
-                                creatSecretRequestModel.type = 'text';
-                                creatSecretRequestModel.value = null;
-                            }
-                        }"
+                                        @update:model-value="async (files) => creatSecretRequestModel_setFile(files[0])"
                                 ></v-file-input>
 
                                 <v-select
@@ -245,7 +250,7 @@ function copyToClipboard(name: string, text: string | null) {
                                         color="primary"
                                         variant="elevated"
                                         text="Create Secret"
-                                        :disabled="!creatSecretRequestModel.value"
+                                        :disabled="!creatSecretRequestModel.data"
                                 ></v-btn>
                             </v-form>
                         </template>
@@ -274,9 +279,10 @@ function copyToClipboard(name: string, text: string | null) {
                             ></v-btn>
                         </template>
                     </template>
+
                     <!--Reveal Secret View-->
                     <template v-else>
-                        <template v-if="!getSecretResponseModel.value">
+                        <template v-if="!getSecretResponseModel.data">
                             <v-form @submit.prevent="getSecret">
                                 <v-text-field
                                         v-model="getSecretRequestModel.passphrase"
@@ -299,9 +305,26 @@ function copyToClipboard(name: string, text: string | null) {
                             </v-form>
                         </template>
                         <template v-else>
+                            <v-text-field
+                                    v-if="getSecretResponseModel.type === 'file'"
+                                    :model-value="getSecretResponseModel.name"
+                                    readonly
+                                    label="Secret File"
+                                    variant="outlined"
+                                    color="primary"
+                            >
+                                <template v-slot:append-inner>
+                                    <v-icon
+                                            color="primary"
+                                            icon="mdi-download"
+                                            @click="downloadUrl(getSecretResponseModel.data, getSecretResponseModel.name)"
+                                    ></v-icon>
+                                </template>
+                            </v-text-field>
+
                             <v-textarea
-                                    v-if="getSecretResponseModel.type === 'text'"
-                                    v-model="getSecretResponseModel.value"
+                                    v-else
+                                    v-model="getSecretResponseModel.data"
                                     readonly
                                     label="Secret Value"
                                     variant="outlined"
@@ -314,33 +337,16 @@ function copyToClipboard(name: string, text: string | null) {
                                     <v-icon
                                             color="primary"
                                             icon="mdi-clipboard-text"
-                                            @click="copyToClipboard('Secret Value', getSecretResponseModel.value);"
+                                            @click="copyToClipboard('Secret Value', getSecretResponseModel.data);"
                                     ></v-icon>
                                 </template>
                             </v-textarea>
 
-                            <v-text-field
-                                    v-if="getSecretResponseModel.type === 'file'"
-                                    :model-value="getSecretResponseModel.value?.split('|')[0]"
-                                    readonly
-                                    label="Secret File"
-                                    variant="outlined"
-                                    color="primary"
-                            >
-                                <template v-slot:append-inner>
-                                    <v-icon
-                                            color="primary"
-                                            icon="mdi-download"
-                                            @click="downloadFileValue(getSecretResponseModel.value)"
-                                    ></v-icon>
-                                </template>
-                            </v-text-field>
-
                             <v-btn
+                                    text="Dismiss"
                                     color="primary"
                                     variant="elevated"
-                                    text="Dismiss"
-                                    @click="getSecretResponseModel = { value: null, type: 'text' }; token = null;"
+                                    @click="getSecretResponseModel = { type: 'text', data: null, name: null }; locationHash = null;"
                             ></v-btn>
                         </template>
                     </template>
@@ -366,7 +372,7 @@ function copyToClipboard(name: string, text: string | null) {
             ></v-btn>
         </v-container>
 
-        <v-snackbar v-model="snackbar.active" variant="elevated" location="">
+        <v-snackbar v-model="snackbar.active" variant="elevated" :color="snackbar.color">
             <div class="text-center" style="font-weight: bold">{{ snackbar.message }}</div>
         </v-snackbar>
     </v-app>
