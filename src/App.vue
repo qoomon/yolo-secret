@@ -74,7 +74,7 @@ const creatSecretResponseModel = ref({
 async function createSecret() {
     try {
         creatSecretResponseModel.value = await axios
-            .post('/api/secret', creatSecretRequestModel.value)
+            .post('/api/secrets', creatSecretRequestModel.value)
             .then((response) => response.data)
         // clear secret data
         creatSecretRequestModel.value = {
@@ -109,7 +109,7 @@ const getSecretResponseModel = ref({
 async function getSecret() {
     try {
         getSecretResponseModel.value = await axios
-            .get('/api/secret', {
+            .get('/api/secrets', {
                 params: {
                     token: location.hash.substring(1),
                     passphrase: getSecretRequestModel.value.passphrase,
