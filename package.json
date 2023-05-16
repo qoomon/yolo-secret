@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "",
-    "_dev": "vite --port $PORT",
     "build": "run-p type-check build-only",
     "preview": "vite preview",
     "build-only": "vite build",
