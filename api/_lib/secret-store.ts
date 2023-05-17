@@ -1,31 +1,36 @@
 import {kv} from "@vercel/kv";
 import * as crypto from "crypto";
+import {CipherGCMTypes} from "crypto";
 import * as argon2 from "argon2";
 
 const PASSWORD_LENGTH: number = 32;
 const PASSWORD_CHARACTERS: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
-const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
 
 export type SecretObject = { type: 'text' | 'file', data: string, name: string };
 export type SecretToken = string;
 
-export async function addSecret(params: { value: SecretObject, ttl: number, passphrase?: string }): Promise<SecretToken> {
+export async function addSecret(params: {
+    value: SecretObject,
+    ttl: number,
+    passphrase?: string
+}): Promise<SecretToken> {
     const token = generatePassword(PASSWORD_LENGTH, PASSWORD_CHARACTERS);
-    const encryptionKey = token + (params.passphrase || '')
-    const encryptionKeyHash = await hashPassword(encryptionKey);
+    const encryptionPassword = token + (params.passphrase || '')
+    const encryptionPasswordHash = await hashPassword(encryptionPassword);
     const storeObject = params.value;
-    const encryptedStoreValue = encrypt(JSON.stringify(storeObject), encryptionKey);
-    await kv.set(`secret:${encryptionKeyHash}`, encryptedStoreValue, {ex: params.ttl})
+    const encryptedStoreValue = encrypt(JSON.stringify(storeObject), encryptionPassword);
+    await kv.set(`secret:${encryptionPasswordHash}`, encryptedStoreValue, {ex: params.ttl})
     return token;
 }
 
 export async function getDelSecret(params: { token: SecretToken, passphrase?: string }): Promise<SecretObject | null> {
-    const encryptionKey = params.token + (params.passphrase || '');
-    const encryptionKeyHash = await hashPassword(encryptionKey);
-    const encryptedStoreValue = await kv.getdel<string>(`secret:${encryptionKeyHash}`);
+    const encryptionPassword = params.token + (params.passphrase || '');
+    const encryptionPasswordHash = await hashPassword(encryptionPassword);
+    const encryptedStoreValue = await kv.getdel<string>(`secret:${encryptionPasswordHash}`);
     if (!encryptedStoreValue) return null;
-    return JSON.parse(decrypt(encryptedStoreValue, encryptionKey));
+    return JSON.parse(decrypt(encryptedStoreValue, encryptionPassword));
 }
 
 // ----------------------------------------------------------------------------
@@ -72,11 +77,14 @@ function generatePassword(length, characters) {
 }
 
 async function hashPassword(password: string) {
-    return await argon2.hash(password, {
-        salt: Buffer.from("00000000"), // fix salt to generate deterministic hashes
+    const argon2Hash = await argon2.hash(password, {
+        version: 19,
+        type: argon2.argon2id,
+        salt: Buffer.from("00000000"), // need to be fixed salt, to generate deterministic hashes
         memoryCost: 65536,     // Memory usage in KiB ~64MB
         timeCost: 4,           // Number of iterations
-        hashLength: 32,        // Hash output length in bytes
         parallelism: 2,        // Number of parallel threads
-    });
+        hashLength: 32,        // Hash output length in bytes
+    })
+    return argon2Hash.substring(argon2Hash.lastIndexOf('$') + 1);
 }
