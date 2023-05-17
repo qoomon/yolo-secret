@@ -4,6 +4,10 @@ import {ref, watchEffect} from "vue";
 import axios from "axios"
 import {useTheme} from 'vuetify'
 
+// TODO remove passphrase option
+// TODO add tombstone indicator
+// TODO add better error messages e.g. token or passphrase wrong
+
 const ttlSelectionItems: { title: string, value: number, default?: boolean }[] = [
     {title: '5 Minutes', value: 60 * 5},
     {title: '30 Minutes', value: 60 * 30},
@@ -36,6 +40,7 @@ const locationHash = ref(window.location.hash.substring(1) as string | null)
 addEventListener("hashchange", () => {
     locationHash.value = window.location.hash.substring(1);
     creatSecretResponseModel.value = {token: null, htmlUrl: null};
+    secretDataVisibility.value = false;
 })
 watchEffect(() => {
     if (!locationHash.value) window.location.hash = '';
@@ -45,6 +50,12 @@ watchEffect(() => {
 // --- Create Secret ---
 // ----------------------------------------------------------------------------
 const creatSecretFileInput = ref()
+
+const secretDataVisibility = ref(false)
+
+function toggleSecretDataVisibility() {
+    secretDataVisibility.value = !secretDataVisibility.value
+}
 
 const creatSecretRequestModel = ref({
     type: 'text' as ('text' | 'file'),
@@ -59,7 +70,6 @@ async function creatSecretRequestModel_setFile(file) {
         creatSecretRequestModel.value.type = 'file';
         creatSecretRequestModel.value.data = await readAsDataURL(file);
         creatSecretRequestModel.value.name = file.name;
-
     } else {
         creatSecretRequestModel.value.type = 'text';
         creatSecretRequestModel.value.data = null;
@@ -176,7 +186,6 @@ function copyToClipboard(name: string, text: string | null) {
         <v-container style="width: 100%; max-width: 464px; padding-top: 2em;">
             <a href="/">
                 <div style="display: flex; align-items: center;">
-
                     <img
                             alt="YOLO Secret App Icon"
                             src="@/assets/app.png"
@@ -195,6 +204,7 @@ function copyToClipboard(name: string, text: string | null) {
                     <template v-if="!locationHash">
                         <template v-if="!creatSecretResponseModel.token">
                             <v-form @submit.prevent="createSecret">
+                                <!-- Secret Text -->
                                 <v-textarea
                                         name="data"
                                         v-if="creatSecretRequestModel.type === 'text'"
@@ -202,13 +212,22 @@ function copyToClipboard(name: string, text: string | null) {
                                         label="Secret Value"
                                         variant="outlined"
                                         color="primary"
-                                        auto-grow="auto-grow"
+                                        auto-grow
                                         max-rows="16"
-                                        rows="1"
+                                        rows="4"
                                         autofocus
+                                        spellcheck="false"
+                                        :class="{'text-masking': !secretDataVisibility}"
                                 >
-                                    <template v-slot:append-inner v-if="!creatSecretRequestModel.data">
+                                    <template v-slot:append-inner>
                                         <v-icon
+                                                v-if="creatSecretRequestModel.data"
+                                                color="primary"
+                                                :icon="!secretDataVisibility ? 'mdi-eye' : 'mdi-eye-off'"
+                                                @click="toggleSecretDataVisibility()"
+                                        ></v-icon>
+                                        <v-icon
+                                                v-else
                                                 color="primary"
                                                 icon="mdi-attachment"
                                                 @click="creatSecretFileInput.click()"
@@ -216,6 +235,7 @@ function copyToClipboard(name: string, text: string | null) {
                                     </template>
                                 </v-textarea>
 
+                                <!-- Secret File -->
                                 <v-file-input
                                         name="data"
                                         v-show="creatSecretRequestModel.type === 'file'"
@@ -246,6 +266,7 @@ function copyToClipboard(name: string, text: string | null) {
                                         variant="underlined"
                                         color="primary"
                                         density="compact"
+                                        spellcheck="false"
                                 ></v-text-field>
 
                                 <v-btn
@@ -296,7 +317,7 @@ function copyToClipboard(name: string, text: string | null) {
                                         variant="underlined"
                                         color="primary"
                                         density="compact"
-                                        clearable
+                                        spellcheck="false"
                                 ></v-text-field>
 
                                 <v-btn
@@ -309,6 +330,7 @@ function copyToClipboard(name: string, text: string | null) {
                             </v-form>
                         </template>
                         <template v-else>
+                            <!-- Secret File Download -->
                             <v-text-field
                                     v-if="getSecretResponseModel.type === 'file'"
                                     :model-value="getSecretResponseModel.name"
@@ -326,6 +348,7 @@ function copyToClipboard(name: string, text: string | null) {
                                 </template>
                             </v-text-field>
 
+                            <!-- Secret Text Display -->
                             <v-textarea
                                     v-else
                                     v-model="getSecretResponseModel.data"
@@ -334,15 +357,29 @@ function copyToClipboard(name: string, text: string | null) {
                                     variant="outlined"
                                     color="primary"
                                     max-rows="16"
-                                    rows="1"
+                                    rows="4"
                                     auto-grow="auto-grow"
+                                    :class="{'text-masking': !secretDataVisibility}"
                             >
                                 <template v-slot:append-inner>
-                                    <v-icon
-                                            color="primary"
-                                            icon="mdi-clipboard-text"
-                                            @click="copyToClipboard('Secret Value', getSecretResponseModel.data);"
-                                    ></v-icon>
+                                    <div
+                                            style="
+                                                height: 100%;
+                                                display: flex; flex-wrap: wrap; align-content: space-between;
+                                                padding-bottom: var(--v-input-padding-top, 10px);
+                                            "
+                                    >
+                                        <v-icon
+                                                color="primary"
+                                                :icon="!secretDataVisibility ? 'mdi-eye' : 'mdi-eye-off'"
+                                                @click="toggleSecretDataVisibility()"
+                                        ></v-icon>
+                                        <v-icon
+                                                color="primary"
+                                                icon="mdi-clipboard-text"
+                                                @click="copyToClipboard('Secret Value', getSecretResponseModel.data);"
+                                        ></v-icon>
+                                    </div>
                                 </template>
                             </v-textarea>
 
@@ -382,6 +419,23 @@ function copyToClipboard(name: string, text: string | null) {
     </v-app>
 </template>
 
-<style scoped>
+<style>
+.v-textarea--auto-grow .v-field__input {
+    overflow-y: scroll;
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+    scrollbar-width: none; /* Firefox */
+}
 
+.v-textarea--auto-grow .v-field__input::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+}
+
+.v-text-field.text-masking .v-field__input {
+    font-family: 'Flow Block', cursive;
+    filter: opacity(0.8);
+}
+
+input[type="password"] {
+    font-family: Flow Block, cursive;
+}
 </style>

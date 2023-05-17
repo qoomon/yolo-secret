@@ -25,13 +25,18 @@ export async function addSecret(params: {
     return token;
 }
 
-export async function getDelSecret(params: { token: SecretToken, passphrase?: string }): Promise<SecretObject | null> {
+export async function getDelSecret(params: {
+    token: SecretToken,
+    passphrase?: string
+}): Promise<SecretObject | null> {
     const encryptionPassword = params.token + (params.passphrase || '');
     const encryptionPasswordHash = await hashPassword(encryptionPassword);
     const encryptedStoreValue = await kv.getdel<string>(`secret:${encryptionPasswordHash}`);
     if (!encryptedStoreValue) return null;
+    // TODO keep tombstone on delete  for 14 days, to indicate this password was read already
     return JSON.parse(decrypt(encryptedStoreValue, encryptionPassword));
 }
+
 
 // ----------------------------------------------------------------------------
 
