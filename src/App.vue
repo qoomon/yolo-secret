@@ -4,10 +4,6 @@ import {ref, watchEffect} from "vue";
 import axios from "axios"
 import {useTheme} from 'vuetify'
 
-// TODO remove passphrase option
-// TODO add tombstone indicator
-// TODO add better error messages e.g. token or passphrase wrong
-
 const ttlSelectionItems: { title: string, value: number, default?: boolean }[] = [
     {title: '5 Minutes', value: 60 * 5},
     {title: '30 Minutes', value: 60 * 30},
@@ -32,7 +28,7 @@ function toggleTheme() {
 
 const snackbar = ref({
     active: false,
-    color: 'success' as 'success' | 'error',
+    color: 'success' as 'success' | 'error' | 'info' | 'warning',
     message: null as string | null,
 });
 
@@ -95,11 +91,11 @@ async function createSecret() {
             passphrase: null,
         };
     } catch (e) {
-        console.log(e)
+        console.error(e)
         snackbar.value = {
             active: true,
             color: 'error',
-            message: 'Failed to create secret',
+            message: 'Failed to Create Secret' + (e.response?.data?.error ? `: ${e.response.data.error}` : ''),
         };
     }
 }
@@ -130,12 +126,26 @@ async function getSecret() {
             passphrase: null,
         };
     } catch (e) {
-        console.log(e)
-        snackbar.value = {
-            active: true,
-            color: 'error',
-            message: 'Failed to get secret',
-        };
+        if (e.response.status === 404) {
+            snackbar.value = {
+                active: true,
+                color: 'error',
+                message: 'Unknown Secret or Wrong Password',
+            };
+        } else if (e.response.status === 410) {
+            snackbar.value = {
+                active: true,
+                color: 'warning',
+                message: 'Secret has been read already!',
+            };
+        } else {
+            console.error(e)
+            snackbar.value = {
+                active: true,
+                color: 'error',
+                message: 'Failed to Get Secret' + (e.response?.data?.error ? `: ${e.response.data.error}` : ''),
+            };
+        }
     }
 }
 
@@ -168,14 +178,8 @@ function copyToClipboard(name: string, text: string | null) {
     navigator.clipboard.writeText(text || '').then(() => {
         snackbar.value = {
             active: true,
-            color: 'success',
+            color: 'info',
             message: `Copied ${name} to clipboard`
-        };
-    }, () => {
-        snackbar.value = {
-            active: true,
-            color: 'error',
-            message: 'Failed to copy to clipboard',
         };
     });
 }

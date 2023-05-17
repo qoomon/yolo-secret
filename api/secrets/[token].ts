@@ -30,7 +30,10 @@ async function handleGetSecret(request: VercelRequest, response: VercelResponse)
     })
 
     if (!secretValue) return response.status(404)
-        .send({error: 'secret not found'});
+        .send({error: 'secret not found or invalid passphrase'});
+
+    if (secretValue === 'TOMBSTONE') return response.status(410)
+        .send({error: 'secret has been read already'});
 
     if (request.query.data === '' || request.query.data === 'true') {
         if (secretValue.type === 'file') {

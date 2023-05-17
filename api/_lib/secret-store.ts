@@ -6,6 +6,8 @@ import * as argon2 from "argon2";
 const PASSWORD_LENGTH: number = 32;
 const PASSWORD_CHARACTERS: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
+const TOMBSTONE_TTL = 60 * 60 * 24 * 14 // 14 days
+
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
 
 export type SecretObject = { type: 'text' | 'file', data: string, name: string };
@@ -28,12 +30,14 @@ export async function addSecret(params: {
 export async function getDelSecret(params: {
     token: SecretToken,
     passphrase?: string
-}): Promise<SecretObject | null> {
+}): Promise<SecretObject | 'TOMBSTONE' | null> {
     const encryptionPassword = params.token + (params.passphrase || '');
     const encryptionPasswordHash = await hashPassword(encryptionPassword);
-    const encryptedStoreValue = await kv.getdel<string>(`secret:${encryptionPasswordHash}`);
+    const encryptedStoreValue = await kv.get<string>(`secret:${encryptionPasswordHash}`);
     if (!encryptedStoreValue) return null;
-    // TODO keep tombstone on delete  for 14 days, to indicate this password was read already
+    if (encryptedStoreValue === 'TOMBSTONE') return 'TOMBSTONE';
+    // replace secret with a TOMBSTONE
+    await kv.set(`secret:${encryptionPasswordHash}`, 'TOMBSTONE', {ex: TOMBSTONE_TTL});
     return JSON.parse(decrypt(encryptedStoreValue, encryptionPassword));
 }
 
