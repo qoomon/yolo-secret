@@ -109,9 +109,8 @@ const getSecretResponseModel = ref({
 async function getSecret() {
     try {
         getSecretResponseModel.value = await axios
-            .get('/api/secrets', {
+            .get('/api/secrets/' + location.hash.substring(1), {
                 params: {
-                    token: location.hash.substring(1),
                     passphrase: getSecretRequestModel.value.passphrase,
                 }
             })

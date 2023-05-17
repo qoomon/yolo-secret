@@ -1,11 +1,10 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
-// @ts-ignore
-import formidable from 'formidable';
+import * as formidable from 'formidable';
 import * as fs from "fs";
 import {IncomingMessage} from "http";
-import * as secretStore from "../lib/secret-store";
-import {SecretObject} from "../lib/secret-store";
-import {base64DataUrlRegex} from "../lib/utils";
+import * as secretStore from "../_lib/secret-store";
+import {SecretObject} from "../_lib/secret-store";
+import {parseBase64DataUrl} from "../_lib/utils";
 
 const SECRET_DATA_MAX_SIZE = 1024 * 1024 * 10 // 10 megabytes
 const SECRET_DATA_MAX_CHARS = Math.floor(SECRET_DATA_MAX_SIZE / 3 * 4); // base64 encoded data char count
@@ -15,24 +14,15 @@ const SECRET_TTL_MAX = 60 * 60 * 24 * 14; // 14 days
 const SECRET_TTL_DEFAULT = 60 * 60 * 24 * 7; // 7 days
 const SECRET_PASSPHRASE_MAX_LENGTH = 32;
 
-
 export default async (request: VercelRequest, response: VercelResponse) => {
     switch (request.method) {
         case 'POST':
-            return handlePostSecret(request, response);
+            return await handlePostSecret(request, response);
         default:
             return response.status(405)
                 .send({error: 'Method not allowed'});
     }
 };
-
-async function parseFormData(request: IncomingMessage, options: formidable.Options) {
-    return await new Promise((resolve, reject) => {
-        formidable(options).parse(request, (err: any, fields: formidable.Fields, files: formidable.Files) => {
-            if (err) reject(err); else resolve({fields, files});
-        });
-    }) as { fields: formidable.Fields, files: formidable.Files };
-}
 
 async function handlePostSecret(request: VercelRequest, response: VercelResponse) {
     let addSecretParams: { value: SecretObject, ttl: number, passphrase?: string } = null
@@ -76,8 +66,15 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
         case undefined: {
             if (!['', 'text', 'file'].includes(request.body.type)) return response.status(400)
                 .send({error: `type field can only be 'text' or 'file'`});
-            if (request.body.data === 'file' && !request.body.data.match(base64DataUrlRegex)) return response.status(400)
-                .send({error: `data field must be a valid data url`});
+
+            if (request.body.data === 'file'){
+                 try {
+                     parseBase64DataUrl(request.body.data);
+                 } catch (e) {
+                     return response.status(400)
+                         .send({error: `data field must be a valid data url`});
+                 }
+            }
 
             addSecretParams = {
                 value: {
@@ -120,4 +117,10 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
         });
 }
 
-// ----------------------------------------------------------------------------
+async function parseFormData(request: IncomingMessage, options: formidable.Options) {
+    return await new Promise((resolve, reject) => {
+        formidable.formidable(options).parse(request, (err: any, fields: formidable.Fields, files: formidable.Files) => {
+            if (err) reject(err); else resolve({fields, files});
+        });
+    }) as { fields: formidable.Fields, files: formidable.Files };
+}

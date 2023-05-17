@@ -13,6 +13,7 @@
     "@types/formidable": "^2.0.6",
     "@vercel/kv": "^0.2.0",
     "@vercel/node": "^2.14.2",
+    "argon2": "^0.30.3",
     "axios": "^1.4.0",
     "formidable": "^2.1.1",
     "vue": "^3.3.1",
