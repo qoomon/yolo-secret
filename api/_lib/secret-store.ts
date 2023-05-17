@@ -8,40 +8,27 @@ const PASSWORD_CHARACTERS: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 
 export type SecretObject = { type: 'text' | 'file', data: string, name: string };
+export type SecretToken = string;
 
-export async function addSecret(params: { value: SecretObject, ttl: number, passphrase?: string }): Promise<string> {
+export async function addSecret(params: { value: SecretObject, ttl: number, passphrase?: string }): Promise<SecretToken> {
     const token = generatePassword(PASSWORD_LENGTH, PASSWORD_CHARACTERS);
-    console.log("addSecret token:", token)
-    const tokenWithPassphrase = token + (params.passphrase || '')
-    console.log("addSecret tokenWithPassphrase:", tokenWithPassphrase)
-    const tokenWithPassphraseHash = await hashPassword(tokenWithPassphrase);
-    console.log("addSecret tokenWithPassphraseHash:", tokenWithPassphraseHash)
+    const encryptionKey = token + (params.passphrase || '')
+    const encryptionKeyHash = await hashPassword(encryptionKey);
     const storeObject = params.value;
-    const encryptedStoreValue = encrypt(JSON.stringify(storeObject), tokenWithPassphrase);
-    await kv.set(`secret:${tokenWithPassphraseHash}`, encryptedStoreValue, {ex: params.ttl})
+    const encryptedStoreValue = encrypt(JSON.stringify(storeObject), encryptionKey);
+    await kv.set(`secret:${encryptionKeyHash}`, encryptedStoreValue, {ex: params.ttl})
     return token;
 }
 
-export async function getDelSecret(params: { token: string, passphrase?: string }): Promise<SecretObject | null> {
-    console.log("getSecret token:", params.token)
-    const tokenWithPassphrase = params.token + (params.passphrase || '');
-    console.log("getSecret tokenWithPassphrase:", tokenWithPassphrase)
-    const tokenWithPassphraseHash = await hashPassword(tokenWithPassphrase);
-    console.log("getSecret tokenWithPassphraseHash:", tokenWithPassphraseHash)
-    const encryptedStoreValue = await kv.getdel<string>(`secret:${tokenWithPassphraseHash}`);
+export async function getDelSecret(params: { token: SecretToken, passphrase?: string }): Promise<SecretObject | null> {
+    const encryptionKey = params.token + (params.passphrase || '');
+    const encryptionKeyHash = await hashPassword(encryptionKey);
+    const encryptedStoreValue = await kv.getdel<string>(`secret:${encryptionKeyHash}`);
     if (!encryptedStoreValue) return null;
-    return JSON.parse(decrypt(encryptedStoreValue, tokenWithPassphrase));
+    return JSON.parse(decrypt(encryptedStoreValue, encryptionKey));
 }
 
 // ----------------------------------------------------------------------------
-
-function generatePassword(length: number, characters?: string) {
-    let result = '';
-    crypto.randomBytes(length).forEach(randomByte => {
-        result += characters[randomByte % characters.length];
-    });
-    return result;
-}
 
 function encrypt(data: string, password: string) {
     const keySalt = crypto.randomBytes(16);
@@ -84,3 +71,13 @@ async function hashPassword(password: string) {
         parallelism: 2,        // Number of parallel threads
     });
 }
+
+function generatePassword(length, characters) {
+    let result = '';
+    const randomBytes = crypto.randomBytes(length);
+    for (let i = 0; i < length; i++) {
+        result += characters[randomBytes[i] % characters.length];
+    }
+    return result;
+}
+

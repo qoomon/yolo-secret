@@ -21,5 +21,6 @@ This is a web app to share secret in a secure way.
 
 ```sh
 npm install
+
 npx vercel dev
 ```

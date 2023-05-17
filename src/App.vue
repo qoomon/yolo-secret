@@ -196,6 +196,7 @@ function copyToClipboard(name: string, text: string | null) {
                         <template v-if="!creatSecretResponseModel.token">
                             <v-form @submit.prevent="createSecret">
                                 <v-textarea
+                                        name="data"
                                         v-if="creatSecretRequestModel.type === 'text'"
                                         v-model="creatSecretRequestModel.data"
                                         label="Secret Value"
@@ -216,6 +217,7 @@ function copyToClipboard(name: string, text: string | null) {
                                 </v-textarea>
 
                                 <v-file-input
+                                        name="data"
                                         v-show="creatSecretRequestModel.type === 'file'"
                                         ref="creatSecretFileInput"
                                         label="Secret File"
@@ -226,6 +228,7 @@ function copyToClipboard(name: string, text: string | null) {
                                 ></v-file-input>
 
                                 <v-select
+                                        name="ttl"
                                         v-model="creatSecretRequestModel.ttl"
                                         :items="ttlSelectionItems"
                                         label="Expiration"
@@ -235,9 +238,10 @@ function copyToClipboard(name: string, text: string | null) {
                                 ></v-select>
 
                                 <v-text-field
+                                        name="passphrase"
                                         v-model="creatSecretRequestModel.passphrase"
                                         type="password"
-                                        suggested="new-password"
+                                        autocomplete="new-password"
                                         label="Passphrase (optional)"
                                         variant="underlined"
                                         color="primary"
@@ -284,9 +288,10 @@ function copyToClipboard(name: string, text: string | null) {
                         <template v-if="!getSecretResponseModel.data">
                             <v-form @submit.prevent="getSecret">
                                 <v-text-field
+                                        name="passphrase"
                                         v-model="getSecretRequestModel.passphrase"
                                         type="password"
-                                        suggested="new-password"
+                                        autocomplete="off"
                                         label="Passphrase (optional)"
                                         variant="underlined"
                                         color="primary"
