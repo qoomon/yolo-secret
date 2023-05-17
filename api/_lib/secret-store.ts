@@ -22,25 +22,36 @@ export async function addSecret(params: {
     const encryptionPassword = token + (params.passphrase || '')
     const encryptionPasswordHash = await hashPassword(encryptionPassword);
     const storeObject = params.value;
-    const encryptedStoreValue = encrypt(JSON.stringify(storeObject), encryptionPassword);
-    await kv.set(`secret:${encryptionPasswordHash}`, encryptedStoreValue, {ex: params.ttl})
+    const storeValue = encrypt(JSON.stringify(storeObject), encryptionPassword);
+    await kv.set(`secret:${encryptionPasswordHash}`, storeValue, {ex: params.ttl})
     return token;
 }
 
-export async function getDelSecret(params: {
+export async function getSecret(params: {
     token: SecretToken,
     passphrase?: string
 }): Promise<SecretObject | 'TOMBSTONE' | null> {
     const encryptionPassword = params.token + (params.passphrase || '');
     const encryptionPasswordHash = await hashPassword(encryptionPassword);
-    const encryptedStoreValue = await kv.get<string>(`secret:${encryptionPasswordHash}`);
-    if (!encryptedStoreValue) return null;
-    if (encryptedStoreValue === 'TOMBSTONE') return 'TOMBSTONE';
-    // replace secret with a TOMBSTONE
-    await kv.set(`secret:${encryptionPasswordHash}`, 'TOMBSTONE', {ex: TOMBSTONE_TTL});
-    return JSON.parse(decrypt(encryptedStoreValue, encryptionPassword));
+    const storeValue = await kv.get<string>(`secret:${encryptionPasswordHash}`);
+    if (!storeValue) return null;
+    if (storeValue === 'TOMBSTONE') return 'TOMBSTONE';
+    return JSON.parse(decrypt(storeValue, encryptionPassword));
 }
 
+export async function deleteSecret(params: {
+    token: SecretToken,
+    passphrase?: string
+}): Promise<boolean> {
+    const encryptionPassword = params.token + (params.passphrase || '');
+    const encryptionPasswordHash = await hashPassword(encryptionPassword);
+    // replace secret with a TOMBSTONE
+    const storeValue = await kv.get<string>(`secret:${encryptionPasswordHash}`);
+    if (!storeValue) return false;
+    if (storeValue === 'TOMBSTONE') return false;
+    await kv.set(`secret:${encryptionPasswordHash}`, 'TOMBSTONE', {ex: TOMBSTONE_TTL});
+    return true;
+}
 
 // ----------------------------------------------------------------------------
 

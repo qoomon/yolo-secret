@@ -129,13 +129,13 @@ async function getSecret() {
         if (e.response.status === 404) {
             snackbar.value = {
                 active: true,
-                color: 'error',
+                color: 'warning',
                 message: 'Unknown Secret or Wrong Password',
             };
         } else if (e.response.status === 410) {
             snackbar.value = {
                 active: true,
-                color: 'warning',
+                color: 'error',
                 message: 'Secret has been read already!',
             };
         } else {
@@ -143,6 +143,45 @@ async function getSecret() {
             snackbar.value = {
                 active: true,
                 color: 'error',
+                message: 'Failed to Get Secret' + (e.response?.data?.error ? `: ${e.response.data.error}` : ''),
+            };
+        }
+    }
+}
+
+async function checkSecret() {
+    try {
+        await axios
+            .get('/api/secrets/' + location.hash.substring(1), {
+                params: {
+                    check: true,
+                    passphrase: getSecretRequestModel.value.passphrase,
+                }
+            })
+            .then((response) => response.data);
+        snackbar.value = {
+            active: true,
+            color: 'success',
+            message: 'Secret has not been read yet!',
+        };
+    } catch (e) {
+        if (e.response.status === 404) {
+            snackbar.value = {
+                active: true,
+                color: 'warning',
+                message: 'Unknown Secret or Wrong Password',
+            };
+        } else if (e.response.status === 410) {
+            snackbar.value = {
+                active: true,
+                color: 'error',
+                message: 'Secret has been read already!',
+            };
+        } else {
+            console.error(e)
+            snackbar.value = {
+                active: true,
+                color: 'warning',
                 message: 'Failed to Get Secret' + (e.response?.data?.error ? `: ${e.response.data.error}` : ''),
             };
         }
@@ -324,13 +363,21 @@ function copyToClipboard(name: string, text: string | null) {
                                         spellcheck="false"
                                 ></v-text-field>
 
-                                <v-btn
-                                        type="submit"
-                                        color="primary"
-                                        variant="elevated"
-                                        text="Reveal Secret"
-                                        @click:.once="getSecret()"
-                                ></v-btn>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <v-btn
+                                            type="submit"
+                                            color="primary"
+                                            variant="elevated"
+                                            text="Reveal Secret"
+                                            @click:.once="getSecret()"
+                                    ></v-btn>
+                                    <v-btn
+                                            color="secondary"
+                                            variant="text"
+                                            text="Check Status"
+                                            @click="checkSecret()"
+                                    ></v-btn>
+                                </div>
                             </v-form>
                         </template>
                         <template v-else>

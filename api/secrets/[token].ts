@@ -1,6 +1,7 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
 import * as secretStore from "../_lib/secret-store";
 import {firstValueOf, parseBase64DataUrl} from "../_lib/utils";
+import {deleteSecret} from "../_lib/secret-store";
 
 const SECRET_PASSPHRASE_MAX_LENGTH = 32;
 const SECRET_TOKEN_LENGTH = 32;
@@ -24,7 +25,7 @@ async function handleGetSecret(request: VercelRequest, response: VercelResponse)
     if (secretPassphrase.length > SECRET_PASSPHRASE_MAX_LENGTH) return response.status(400)
         .send({error: `passphrase length must be less than ${SECRET_PASSPHRASE_MAX_LENGTH}`});
 
-    const secretValue = await secretStore.getDelSecret({
+    const secretValue = await secretStore.getSecret({
         token: secretToken,
         passphrase: secretPassphrase,
     })
@@ -34,6 +35,16 @@ async function handleGetSecret(request: VercelRequest, response: VercelResponse)
 
     if (secretValue === 'TOMBSTONE') return response.status(410)
         .send({error: 'secret has been read already'});
+
+    if (request.query.check) {
+        return response.status(204)
+            .send('');
+    }
+
+    await secretStore.deleteSecret({
+        token: secretToken,
+        passphrase: secretPassphrase,
+    });
 
     if (request.query.data === '' || request.query.data === 'true') {
         if (secretValue.type === 'file') {
