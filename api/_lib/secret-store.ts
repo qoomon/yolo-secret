@@ -62,16 +62,6 @@ function decrypt(encryptedValue: string, password: string) {
         + decipher.final('utf8');
 }
 
-async function hashPassword(password: string) {
-    return await argon2.hash(password, {
-        salt: Buffer.from("00000000"), // fix salt to generate deterministic hashes
-        memoryCost: 65536,     // Memory usage in KiB ~64MB
-        timeCost: 4,           // Number of iterations
-        hashLength: 32,        // Hash output length in bytes
-        parallelism: 2,        // Number of parallel threads
-    });
-}
-
 function generatePassword(length, characters) {
     let result = '';
     const randomBytes = crypto.randomBytes(length);
@@ -81,3 +71,12 @@ function generatePassword(length, characters) {
     return result;
 }
 
+async function hashPassword(password: string) {
+    return await argon2.hash(password, {
+        salt: Buffer.from("00000000"), // fix salt to generate deterministic hashes
+        memoryCost: 65536,     // Memory usage in KiB ~64MB
+        timeCost: 4,           // Number of iterations
+        hashLength: 32,        // Hash output length in bytes
+        parallelism: 2,        // Number of parallel threads
+    });
+}
