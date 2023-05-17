@@ -280,7 +280,7 @@ function copyToClipboard(name: string, text: string | null) {
 
                                 <!-- Secret File -->
                                 <v-file-input
-                                        name="data"
+                                        name="file-data"
                                         v-show="creatSecretRequestModel.type === 'file'"
                                         ref="creatSecretFileInput"
                                         label="Secret File"
