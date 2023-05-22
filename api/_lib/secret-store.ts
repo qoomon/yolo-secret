@@ -10,7 +10,7 @@ const TOMBSTONE_TTL = 60 * 60 * 24 * 14 // 14 days
 
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
 
-export type SecretObject = { type: 'text' | 'file', data: string, name: string };
+export type SecretObject = { type: 'text' | 'file', data: string, name?: string };
 export type SecretToken = string;
 
 export async function addSecret(params: {

@@ -7,7 +7,7 @@ This is a web app to share secrets in an easy but secure way.
 
 ## Features
 - Secrets are deleted once they have been read
-- Secrets can be eighter plain **Text** or a **File**
+- Secrets can be either plain **Text** or a **File**
 - Secrets have an expiration time (up to 14 days)
 - Secrets are encrypted at rest (aes-256-gcm)
 - Secrets can be protected by a passphrase in additon to the secret id
@@ -19,8 +19,21 @@ This is a web app to share secrets in an easy but secure way.
 - The recipient then can open then Secret URL and hit the REVEAL button
     - Once the secret is revealed it's already deleted and can not be accessed again  
 
+##
+
 ## Development
 
+### TODO
+- Use redis hash set for storing secret data and metadata like status and password attempts
+- Use path parameter instead of hash value for secret id
+- Delete secrets after three wrong passphrase attempts
+- Add a passphrase strength indicator
+- Add a passphrase generator
+- Add a status indicator for secret reveal screen instead of the check button
+- Hide Secret reveal url by default
+- Disable suggestion for password input
+
+### Run Local
 ```sh
 npm install
 

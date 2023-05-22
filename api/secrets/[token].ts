@@ -1,7 +1,7 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
 import * as secretStore from "../_lib/secret-store";
-import {firstValueOf, parseBase64DataUrl} from "../_lib/utils";
 import {deleteSecret} from "../_lib/secret-store";
+import {firstValueOf} from "../_lib/utils";
 
 const SECRET_PASSPHRASE_MAX_LENGTH = 32;
 const SECRET_TOKEN_LENGTH = 32;
@@ -48,16 +48,15 @@ async function handleGetSecret(request: VercelRequest, response: VercelResponse)
 
     if (request.query.data === '' || request.query.data === 'true') {
         if (secretValue.type === 'file') {
-            const secretValueDataUrlObject = parseBase64DataUrl(secretValue.data);
             return response.status(200)
-                .setHeader('Content-Type', secretValueDataUrlObject.mimetype)
+                .setHeader('Content-Type', 'application/octet-stream')
                 .setHeader('Content-Disposition', `attachment; filename=${secretValue.name}`)
-                .send(Buffer.from(secretValueDataUrlObject.data, 'base64'));
+                .send(Buffer.from(secretValue.data, 'base64'));
         }
 
         return response.status(200)
             .setHeader('Content-Type', 'text/plain')
-            .setHeader('Content-Disposition', `attachment; filename=${secretValue.name}.txt`)
+            .setHeader('Content-Disposition', `attachment; filename=${secretValue.name || 'secret'}.txt`)
             .send(secretValue.data);
     }
 

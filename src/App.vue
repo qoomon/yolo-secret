@@ -64,7 +64,7 @@ const creatSecretRequestModel = ref({
 async function creatSecretRequestModel_setFile(file) {
     if (file) {
         creatSecretRequestModel.value.type = 'file';
-        creatSecretRequestModel.value.data = await readAsDataURL(file);
+        creatSecretRequestModel.value.data = await readFileAsBase64String(file);
         creatSecretRequestModel.value.name = file.name;
     } else {
         creatSecretRequestModel.value.type = 'text';
@@ -192,22 +192,26 @@ async function checkSecret() {
 // --- Utils ---
 // ----------------------------------------------------------------------------
 
-async function readAsDataURL(file: File): Promise<string> {
+async function readFileAsBase64String(file: File): Promise<string> {
     return await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string)
+        reader.onload = () => {
+            // data url format: 'data:[<mimetype>][;base64],<data>'
+            const base64Data = (reader.result as string).split(',')[1];
+            resolve(base64Data);
+        };
         reader.onerror = (e) => {
             reader.abort();
             reject(e);
-        }
+        };
     });
 }
 
-function downloadUrl(href, download) {
+function downloadBase64File(data: string, filename: string) {
     const a = document.createElement('a')
-    a.href = href
-    a.download = download;
+    a.href = `data:application/octet-stream;base64,${data}`;
+    a.download = filename;
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -394,7 +398,7 @@ function copyToClipboard(name: string, text: string | null) {
                                     <v-icon
                                             color="primary"
                                             icon="mdi-download"
-                                            @click="downloadUrl(getSecretResponseModel.data, getSecretResponseModel.name)"
+                                            @click="downloadBase64File(getSecretResponseModel.data, getSecretResponseModel.name!)"
                                     ></v-icon>
                                 </template>
                             </v-text-field>

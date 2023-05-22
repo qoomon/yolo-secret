@@ -4,7 +4,7 @@ import * as fs from "fs";
 import {IncomingMessage} from "http";
 import * as secretStore from "../_lib/secret-store";
 import {SecretObject} from "../_lib/secret-store";
-import {parseBase64DataUrl} from "../_lib/utils";
+import {BASE64_REGEX} from "../_lib/utils";
 
 const SECRET_DATA_MAX_SIZE = 1024 * 1024 * 10 // 10 megabytes
 const SECRET_DATA_MAX_CHARS = Math.floor(SECRET_DATA_MAX_SIZE / 3 * 4); // base64 encoded data char count
@@ -48,7 +48,7 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
                 value: formData.files.data
                     ? {
                         type: 'file',
-                        data: `data:${formData.files.data.mimetype};base64,` + fs.readFileSync(formData.files.data.filepath).toString('base64'),
+                        data: fs.readFileSync(formData.files.data.filepath).toString('base64'),
                         name: formData.fields.name as string || formData.files.data.originalFilename,
                     }
                     : {
@@ -67,14 +67,8 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
             if (!['', 'text', 'file'].includes(request.body.type)) return response.status(400)
                 .send({error: `type field can only be 'text' or 'file'`});
 
-            if (request.body.data === 'file'){
-                 try {
-                     parseBase64DataUrl(request.body.data);
-                 } catch (e) {
-                     return response.status(400)
-                         .send({error: `data field must be a valid data url`});
-                 }
-            }
+            if (request.body.type === 'file' && !request.body.data?.match(BASE64_REGEX)) return response.status(400)
+                .send({error: `data field must be a valid data url`});
 
             addSecretParams = {
                 value: {
