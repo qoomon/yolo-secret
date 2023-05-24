@@ -2,65 +2,134 @@ import {kv} from "@vercel/kv";
 import * as crypto from "crypto";
 import {CipherGCMTypes} from "crypto";
 import * as argon2 from "argon2";
+import {
+    SECRET_PASSPHRASE_MAX_ATTEMPTS,
+    SECRET_TOMBSTONE_TTL,
+} from "./config";
 
 const PASSWORD_LENGTH: number = 32;
 const PASSWORD_CHARACTERS: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-const TOMBSTONE_TTL = 60 * 60 * 24 * 14 // 14 days
-
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
 
-export type SecretObject = { type: 'text' | 'file', data: string, name?: string };
-export type SecretToken = string;
-
 export async function addSecret(params: {
-    value: SecretObject,
+    data: SecretData,
     ttl: number,
     passphrase?: string
 }): Promise<SecretToken> {
-    const token = generatePassword(PASSWORD_LENGTH, PASSWORD_CHARACTERS);
-    const encryptionPassword = token + (params.passphrase || '')
-    const encryptionPasswordHash = await hashPassword(encryptionPassword);
-    const storeObject = params.value;
-    const storeValue = encrypt(JSON.stringify(storeObject), encryptionPassword);
-    await kv.set(`secret:${encryptionPasswordHash}`, storeValue, {ex: params.ttl})
-    return token;
+    const encryptionPassword = generatePassword(PASSWORD_LENGTH, PASSWORD_CHARACTERS);
+    const encryptionPasswordHashBase64 = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
+    const secretStoreKey = `secret:${encryptionPasswordHashBase64}`
+
+    const secret: Secret = {
+        data: encrypt(params.data, encryptionPassword),
+        passphrase: params.passphrase ? {
+            hash: await calculateArgon2Hash(params.passphrase),
+            attempts: 0,
+        } : undefined,
+        meta: {
+            status: 'UNREAD',
+            expiresAt: Math.floor(Date.now() / 1000 + params.ttl),
+            passphrase: params.passphrase ? true : undefined,
+        },
+    };
+
+    await kv.multi()
+        .json.set(secretStoreKey, '$', secret)
+        .expireat(secretStoreKey, secret.meta.expiresAt)
+        .exec();
+
+    return encryptionPassword;
 }
 
-export async function getSecret(params: {
+
+export async function getSecretData(params: {
     token: SecretToken,
     passphrase?: string
-}): Promise<SecretObject | 'TOMBSTONE' | null> {
-    const encryptionPassword = params.token + (params.passphrase || '');
-    const encryptionPasswordHash = await hashPassword(encryptionPassword);
-    const storeValue = await kv.get<string>(`secret:${encryptionPasswordHash}`);
-    if (!storeValue) return null;
-    if (storeValue === 'TOMBSTONE') return 'TOMBSTONE';
-    return JSON.parse(decrypt(storeValue, encryptionPassword));
+}): Promise<SecretData | null> {
+
+    const encryptionPassword = params.token;
+    const encryptionPasswordHashBase64 = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
+    const secretStoreKey = `secret:${encryptionPasswordHashBase64}`
+
+    const secret: Secret = (await kv.json.get(secretStoreKey, '$'))?.[0];
+    if (!secret || secret.meta.status !== 'UNREAD') return null;
+
+    if (secret.passphrase || params.passphrase) {
+        if (!secret.passphrase) throw new PasswordError('Unexpected passphrase');
+
+        if (!params.passphrase || !await argon2.verify(secret.passphrase.hash, params.passphrase)) {
+            const passphraseAttempts = (await kv.json.numincrby(secretStoreKey, '$.passphrase.attempts', 1))[0];
+            if (passphraseAttempts >= SECRET_PASSPHRASE_MAX_ATTEMPTS) {
+                console.debug('Delete Secret.data and Secret.passphrase due to too many passphrase attempts');
+                const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
+                await kv.multi()
+                    .json.del(secretStoreKey, '$.data')
+                    .json.del(secretStoreKey, '$.passphrase')
+                    .json.del(secretStoreKey, '$.meta.passphrase')
+                    .json.set(secretStoreKey, '$.meta.status', JSON.stringify('TOO_MANY_PASSPHRASE_ATTEMPTS' satisfies SecretStatus))
+                    .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
+                    .expireat(secretStoreKey, expiresAt)
+                    .exec();
+            }
+
+            throw new PasswordError('Invalid passphrase');
+        }
+    }
+    const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
+    await kv.multi()
+        .json.del(secretStoreKey, '$.data')
+        .json.del(secretStoreKey, '$.passphrase')
+        .json.del(secretStoreKey, '$.meta.passphrase')
+        .json.set(secretStoreKey, '$.meta.status', JSON.stringify('READ' satisfies SecretStatus))
+        .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
+        .expireat(secretStoreKey, expiresAt)
+        .exec();
+    return decrypt(secret.data, encryptionPassword);
+}
+
+export async function getSecretMetaData(params: {
+    token: SecretToken,
+}): Promise<SecretMetaData | null> {
+
+    const encryptionPassword = params.token;
+    const encryptionPasswordHash = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
+    const secretStoreKey = `secret:${encryptionPasswordHash}`
+
+    return (await kv.json.get(secretStoreKey, '$.meta'))?.[0];
 }
 
 export async function deleteSecret(params: {
     token: SecretToken,
-    passphrase?: string
 }): Promise<boolean> {
-    const encryptionPassword = params.token + (params.passphrase || '');
-    const encryptionPasswordHash = await hashPassword(encryptionPassword);
-    // replace secret with a TOMBSTONE
-    const storeValue = await kv.get<string>(`secret:${encryptionPasswordHash}`);
-    if (!storeValue) return false;
-    if (storeValue === 'TOMBSTONE') return false;
-    await kv.set(`secret:${encryptionPasswordHash}`, 'TOMBSTONE', {ex: TOMBSTONE_TTL});
+
+    const encryptionPassword = params.token;
+    const encryptionPasswordHash = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
+    const secretStoreKey = `secret:${encryptionPasswordHash}`
+
+    const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
+    await kv.multi()
+        .json.del(secretStoreKey, '$.data')
+        .json.del(secretStoreKey, '$.passphrase')
+        .json.del(secretStoreKey, '$.meta.passphrase')
+        .json.set(secretStoreKey, '$.meta.status', JSON.stringify('DELETED' satisfies SecretStatus))
+        .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
+        .expireat(secretStoreKey, expiresAt)
+        .exec();
+
     return true;
 }
 
 // ----------------------------------------------------------------------------
 
-function encrypt(data: string, password: string) {
+function encrypt(data: SecretData, password: string) {
     const keySalt = crypto.randomBytes(16);
     const key = crypto.scryptSync(password, keySalt, 32);
     const iv = crypto.randomBytes(16);
+
     const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-    const encryptedData = cipher.update(data, 'utf8', 'base64')
+
+    const dataString = JSON.stringify(data);
+    const encryptedData = cipher.update(dataString, 'utf8', 'base64')
         + cipher.final('base64');
 
     return [
@@ -71,9 +140,9 @@ function encrypt(data: string, password: string) {
     ].join(':');
 }
 
-function decrypt(encryptedValue: string, password: string) {
+function decrypt(encryptedValue: string, password: string): SecretData {
     const encryptedValueSplit = encryptedValue.split(':');
-    if (encryptedValueSplit.length !== 4) throw new Error('decrypt - Invalid value');
+    if (encryptedValueSplit.length !== 4) throw new Error('Invalid encrypted value');
 
     const keySalt = Buffer.from(encryptedValueSplit[0], 'base64');
     const key = crypto.scryptSync(password, keySalt, 32);
@@ -83,8 +152,10 @@ function decrypt(encryptedValue: string, password: string) {
 
     const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
-    return decipher.update(encryptedData, 'base64', 'utf8')
-        + decipher.final('utf8');
+
+    const dataString = decipher.update(encryptedData, 'base64', 'utf8')
+        + decipher.final('utf8')
+    return JSON.parse(dataString);
 }
 
 function generatePassword(length, characters) {
@@ -96,15 +167,45 @@ function generatePassword(length, characters) {
     return result;
 }
 
-async function hashPassword(password: string) {
-    const argon2Hash = await argon2.hash(password, {
-        version: 19,
+async function calculateArgon2Hash(password: string, salt: boolean = true) {
+    return await argon2.hash(password, {
         type: argon2.argon2id,
-        salt: Buffer.from("00000000"), // need to be fixed salt, to generate deterministic hashes
+        saltLength: 16,
+        // if salt is undefined, argon2 will generate a random salt with saltLength
+        salt: !salt ? Buffer.from("00000000") : undefined,
         memoryCost: 65536,     // Memory usage in KiB ~64MB
         timeCost: 4,           // Number of iterations
         parallelism: 2,        // Number of parallel threads
         hashLength: 32,        // Hash output length in bytes
     })
-    return argon2Hash.substring(argon2Hash.lastIndexOf('$') + 1);
+}
+
+// ----------------------------------------------------------------------------
+
+export type SecretToken = string;
+export type SecretStatus = 'UNREAD' | 'READ' | 'TOO_MANY_PASSPHRASE_ATTEMPTS' | 'DELETED'
+export type Secret = {
+    data?: string, // encrypted and base64 encoded SecretData
+    passphrase?: { hash: string, attempts: number },
+    meta: SecretMetaData,
+};
+export type SecretData = {
+    type: 'text',
+    data: string,
+} | {
+    type: 'file',
+    name: string,
+    data: string,
+};
+export type SecretMetaData = {
+    status: SecretStatus,
+    expiresAt: number,
+    passphrase?: boolean,
+}
+
+export class PasswordError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'PasswordError';
+    }
 }

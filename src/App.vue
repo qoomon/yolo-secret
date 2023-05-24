@@ -3,18 +3,11 @@
 import {ref, watchEffect} from "vue";
 import axios from "axios"
 import {useTheme} from 'vuetify'
+import SecretAddForm from "@/components/SecretAddForm.vue";
+import SecretUrlView from "@/components/SecretUrlView.vue";
+import SecretRevealView from "@/components/SecretRevealView.vue";
+import SecretView from "@/components/SecretView.vue";
 
-const ttlSelectionItems: { title: string, value: number, default?: boolean }[] = [
-    {title: '5 Minutes', value: 60 * 5},
-    {title: '30 Minutes', value: 60 * 30},
-    {title: '1 Hour', value: 60 * 60},
-    {title: '4 Hours', value: 60 * 60 * 4},
-    {title: '12 Hours', value: 60 * 60 * 12},
-    {title: '1 Day', value: 60 * 60 * 24},
-    {title: '3 Days', value: 60 * 60 * 24 * 3},
-    {title: '7 Days', value: 60 * 60 * 24 * 7, default: true},
-    {title: '14 Days', value: 60 * 60 * 24 * 14},
-];
 
 // ----------------------------------------------------------------------------
 
@@ -32,64 +25,76 @@ const snackbar = ref({
     message: null as string | null,
 });
 
-const locationHash = ref(window.location.hash.substring(1) as string | null)
+const secretToken = ref<string | undefined>(window.location.hash.substring(1));
 addEventListener("hashchange", () => {
-    locationHash.value = window.location.hash.substring(1);
-    creatSecretResponseModel.value = {token: null, htmlUrl: null};
-    secretDataVisibility.value = false;
-})
+    secretToken.value = window.location.hash.substring(1);
+    addSecretResponseModel.value = undefined;
+});
 watchEffect(() => {
-    if (!locationHash.value) window.location.hash = '';
-})
+    if (!secretToken.value) window.location.hash = '';
+});
+
+const secretMetaData = ref<{
+    status: 'UNREAD' | 'READ' | 'TOO_MANY_PASSPHRASE_ATTEMPTS' | 'DELETED',
+    expiresAt: number,
+    passphrase?: boolean
+} | undefined>();
+
+watchEffect(async () => {
+    if (!secretToken.value) return;
+    await getSecretMetaData()
+});
+
+async function getSecretMetaData() {
+    try {
+        secretMetaData.value = await axios
+            .get(`/api/secrets/${secretToken.value}/meta`)
+            .then((response) => response.data)
+    } catch (e) {
+        if (e.response.status === 404) {
+            snackbar.value = {
+                active: true,
+                color: 'warning',
+                message: 'Secret not found!',
+            };
+        } else {
+            console.error(e)
+            snackbar.value = {
+                active: true,
+                color: 'warning',
+                message: 'Failed to Get Secret' + (e.response?.data?.error ? `: ${e.response.data.error}` : ''),
+            };
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------
 // --- Create Secret ---
 // ----------------------------------------------------------------------------
-const creatSecretFileInput = ref()
 
-const secretDataVisibility = ref(false)
 
-function toggleSecretDataVisibility() {
-    secretDataVisibility.value = !secretDataVisibility.value
-}
+const addSecretRequestModel = ref<{
+    type: 'text' | 'file',
+    data?: string,
+    name?: string,
+    ttl?: string,
+    passphrase?: string,
+}>({type: 'text'});
 
-const creatSecretRequestModel = ref({
-    type: 'text' as ('text' | 'file'),
-    name: null as string | null,
-    data: null as string | null,
-    ttl: ttlSelectionItems.find((item) => item.default)?.value,
-    passphrase: null as string | null,
-});
 
-async function creatSecretRequestModel_setFile(file) {
-    if (file) {
-        creatSecretRequestModel.value.type = 'file';
-        creatSecretRequestModel.value.data = await readFileAsBase64String(file);
-        creatSecretRequestModel.value.name = file.name;
-    } else {
-        creatSecretRequestModel.value.type = 'text';
-        creatSecretRequestModel.value.data = null;
-    }
-}
+const addSecretResponseModel = ref<{
+    token: string,
+    htmlUrl: string,
+} | undefined>
+();
 
-const creatSecretResponseModel = ref({
-    token: null as string | null,
-    htmlUrl: null as string | null,
-});
-
-async function createSecret() {
+async function addSecret() {
     try {
-        creatSecretResponseModel.value = await axios
-            .post('/api/secrets', creatSecretRequestModel.value)
+        addSecretResponseModel.value = await axios
+            .post('/api/secrets', addSecretRequestModel.value)
             .then((response) => response.data)
         // clear secret data
-        creatSecretRequestModel.value = {
-            type: 'text' as 'text' | 'file',
-            name: null,
-            data: null,
-            ttl: ttlSelectionItems.find((item) => item.default)?.value,
-            passphrase: null,
-        };
+        addSecretRequestModel.value = {type: 'text'};
     } catch (e) {
         console.error(e)
         snackbar.value = {
@@ -103,28 +108,27 @@ async function createSecret() {
 // ----------------------------------------------------------------------------
 // --- Reveal Secret ---
 // ----------------------------------------------------------------------------
-const getSecretRequestModel = ref({
-    passphrase: null,
-});
-const getSecretResponseModel = ref({
-    type: 'file' as 'text' | 'file',
-    data: null as string | null,
-    name: null as string | null,
-});
+const getSecretRequestModel = ref<{
+    passphrase?: string,
+}>({});
 
-async function getSecret() {
+const getSecretResponseModel = ref<{
+    type: 'text' | 'file',
+    data: string,
+    name?: string,
+} | undefined>();
+
+async function getSecretData() {
     try {
         getSecretResponseModel.value = await axios
-            .get('/api/secrets/' + location.hash.substring(1), {
+            .get(`/api/secrets/${secretToken.value}`, {
                 params: {
                     passphrase: getSecretRequestModel.value.passphrase,
                 }
             })
             .then((response) => response.data);
         // clear secret data
-        getSecretRequestModel.value = {
-            passphrase: null,
-        };
+        getSecretRequestModel.value = {};
     } catch (e) {
         if (e.response.status === 404) {
             snackbar.value = {
@@ -143,45 +147,6 @@ async function getSecret() {
             snackbar.value = {
                 active: true,
                 color: 'error',
-                message: 'Failed to Get Secret' + (e.response?.data?.error ? `: ${e.response.data.error}` : ''),
-            };
-        }
-    }
-}
-
-async function checkSecret() {
-    try {
-        await axios
-            .get('/api/secrets/' + location.hash.substring(1), {
-                params: {
-                    check: true,
-                    passphrase: getSecretRequestModel.value.passphrase,
-                }
-            })
-            .then((response) => response.data);
-        snackbar.value = {
-            active: true,
-            color: 'success',
-            message: 'Secret has not been read yet!',
-        };
-    } catch (e) {
-        if (e.response.status === 404) {
-            snackbar.value = {
-                active: true,
-                color: 'warning',
-                message: 'Unknown Secret or Wrong Password',
-            };
-        } else if (e.response.status === 410) {
-            snackbar.value = {
-                active: true,
-                color: 'error',
-                message: 'Secret has been read already!',
-            };
-        } else {
-            console.error(e)
-            snackbar.value = {
-                active: true,
-                color: 'warning',
                 message: 'Failed to Get Secret' + (e.response?.data?.error ? `: ${e.response.data.error}` : ''),
             };
         }
@@ -192,40 +157,7 @@ async function checkSecret() {
 // --- Utils ---
 // ----------------------------------------------------------------------------
 
-async function readFileAsBase64String(file: File): Promise<string> {
-    return await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            // data url format: 'data:[<mimetype>][;base64],<data>'
-            const base64Data = (reader.result as string).split(',')[1];
-            resolve(base64Data);
-        };
-        reader.onerror = (e) => {
-            reader.abort();
-            reject(e);
-        };
-    });
-}
 
-function downloadBase64File(data: string, filename: string) {
-    const a = document.createElement('a')
-    a.href = `data:application/octet-stream;base64,${data}`;
-    a.download = filename;
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-}
-
-function copyToClipboard(name: string, text: string | null) {
-    navigator.clipboard.writeText(text || '').then(() => {
-        snackbar.value = {
-            active: true,
-            color: 'info',
-            message: `Copied ${name} to clipboard`
-        };
-    });
-}
 </script>
 
 <template>
@@ -247,204 +179,29 @@ function copyToClipboard(name: string, text: string | null) {
         <v-container style="width: 100%; max-width: 440px">
             <v-card class="mx-auto">
                 <v-container>
-                    <!--Create Secret View-->
-                    <template v-if="!locationHash">
-                        <template v-if="!creatSecretResponseModel.token">
-                            <v-form @submit.prevent="createSecret">
-                                <!-- Secret Text -->
-                                <v-textarea
-                                        name="data"
-                                        v-if="creatSecretRequestModel.type === 'text'"
-                                        v-model="creatSecretRequestModel.data"
-                                        label="Secret Value"
-                                        variant="outlined"
-                                        color="primary"
-                                        auto-grow
-                                        max-rows="16"
-                                        rows="4"
-                                        autofocus
-                                        spellcheck="false"
-                                        :class="{'text-masking': !secretDataVisibility}"
-                                >
-                                    <template v-slot:append-inner>
-                                        <v-icon
-                                                v-if="creatSecretRequestModel.data"
-                                                color="primary"
-                                                :icon="!secretDataVisibility ? 'mdi-eye' : 'mdi-eye-off'"
-                                                @click="toggleSecretDataVisibility()"
-                                        ></v-icon>
-                                        <v-icon
-                                                v-else
-                                                color="primary"
-                                                icon="mdi-attachment"
-                                                @click="creatSecretFileInput.click()"
-                                        ></v-icon>
-                                    </template>
-                                </v-textarea>
-
-                                <!-- Secret File -->
-                                <v-file-input
-                                        name="file-data"
-                                        v-show="creatSecretRequestModel.type === 'file'"
-                                        ref="creatSecretFileInput"
-                                        label="Secret File"
-                                        variant="outlined"
-                                        color="primary"
-                                        prepend-icon=""
-                                        @update:model-value="async (files) => creatSecretRequestModel_setFile(files[0])"
-                                ></v-file-input>
-
-                                <v-select
-                                        name="ttl"
-                                        v-model="creatSecretRequestModel.ttl"
-                                        :items="ttlSelectionItems"
-                                        label="Expiration"
-                                        variant="outlined"
-                                        color="primary"
-                                        density="comfortable"
-                                ></v-select>
-
-                                <v-text-field
-                                        name="passphrase"
-                                        v-model="creatSecretRequestModel.passphrase"
-                                        type="password"
-                                        autocomplete="new-password"
-                                        label="Passphrase (optional)"
-                                        variant="underlined"
-                                        color="primary"
-                                        density="compact"
-                                        spellcheck="false"
-                                ></v-text-field>
-
-                                <v-btn
-                                        type="submit"
-                                        color="primary"
-                                        variant="elevated"
-                                        text="Create Secret"
-                                        :disabled="!creatSecretRequestModel.data"
-                                ></v-btn>
-                            </v-form>
-                        </template>
-                        <template v-else>
-                            <v-text-field
-                                    :model-value="creatSecretResponseModel.htmlUrl"
-                                    readonly
-                                    label="Secret URL"
-                                    variant="outlined"
-                                    color="primary"
-                            >
-                                <template v-slot:append-inner>
-                                    <v-icon
-                                            color="primary"
-                                            icon="mdi-clipboard-text"
-                                            @click="copyToClipboard('Secret URL', creatSecretResponseModel.htmlUrl);"
-                                    ></v-icon>
-                                </template>
-                            </v-text-field>
-
-                            <v-btn
-                                    color="primary"
-                                    variant="elevated"
-                                    text="Dismiss"
-                                    @click="creatSecretResponseModel = { token: null, htmlUrl: null}"
-                            ></v-btn>
-                        </template>
+                    <template v-if="!secretToken">
+                        <secret-add-form
+                                v-if="!addSecretResponseModel"
+                                v-model="addSecretRequestModel"
+                                @submit="addSecret"/>
+                        <secret-url-view
+                                v-else
+                                :url="addSecretResponseModel.htmlUrl"
+                                @dismiss="addSecretResponseModel = undefined;"/>
                     </template>
 
-                    <!--Reveal Secret View-->
                     <template v-else>
-                        <template v-if="!getSecretResponseModel.data">
-                            <v-form @submit.prevent="getSecret">
-                                <v-text-field
-                                        name="passphrase"
-                                        v-model="getSecretRequestModel.passphrase"
-                                        type="password"
-                                        autocomplete="off"
-                                        label="Passphrase (optional)"
-                                        variant="underlined"
-                                        color="primary"
-                                        density="compact"
-                                        spellcheck="false"
-                                ></v-text-field>
-
-                                <div style="display: flex; justify-content: space-between;">
-                                    <v-btn
-                                            type="submit"
-                                            color="primary"
-                                            variant="elevated"
-                                            text="Reveal Secret"
-                                            @click:.once="getSecret()"
-                                    ></v-btn>
-                                    <v-btn
-                                            color="secondary"
-                                            variant="text"
-                                            text="Check Status"
-                                            @click="checkSecret()"
-                                    ></v-btn>
-                                </div>
-                            </v-form>
-                        </template>
-                        <template v-else>
-                            <!-- Secret File Download -->
-                            <v-text-field
-                                    v-if="getSecretResponseModel.type === 'file'"
-                                    :model-value="getSecretResponseModel.name"
-                                    readonly
-                                    label="Secret File"
-                                    variant="outlined"
-                                    color="primary"
-                            >
-                                <template v-slot:append-inner>
-                                    <v-icon
-                                            color="primary"
-                                            icon="mdi-download"
-                                            @click="downloadBase64File(getSecretResponseModel.data, getSecretResponseModel.name!)"
-                                    ></v-icon>
-                                </template>
-                            </v-text-field>
-
-                            <!-- Secret Text Display -->
-                            <v-textarea
-                                    v-else
-                                    v-model="getSecretResponseModel.data"
-                                    readonly
-                                    label="Secret Value"
-                                    variant="outlined"
-                                    color="primary"
-                                    max-rows="16"
-                                    rows="4"
-                                    auto-grow="auto-grow"
-                                    :class="{'text-masking': !secretDataVisibility}"
-                            >
-                                <template v-slot:append-inner>
-                                    <div
-                                            style="
-                                                height: 100%;
-                                                display: flex; flex-wrap: wrap; align-content: space-between;
-                                                padding-bottom: var(--v-input-padding-top, 10px);
-                                            "
-                                    >
-                                        <v-icon
-                                                color="primary"
-                                                :icon="!secretDataVisibility ? 'mdi-eye' : 'mdi-eye-off'"
-                                                @click="toggleSecretDataVisibility()"
-                                        ></v-icon>
-                                        <v-icon
-                                                color="primary"
-                                                icon="mdi-clipboard-text"
-                                                @click="copyToClipboard('Secret Value', getSecretResponseModel.data);"
-                                        ></v-icon>
-                                    </div>
-                                </template>
-                            </v-textarea>
-
-                            <v-btn
-                                    text="Dismiss"
-                                    color="primary"
-                                    variant="elevated"
-                                    @click="getSecretResponseModel = { type: 'text', data: null, name: null }; locationHash = null;"
-                            ></v-btn>
-                        </template>
+                        <secret-reveal-view
+                                v-if="!getSecretResponseModel"
+                                v-model="getSecretRequestModel"
+                                :meta-data="secretMetaData"
+                                @reveal="getSecretData"
+                        />
+                        <secret-view
+                                v-else
+                                :secret="getSecretResponseModel"
+                                @dismiss="getSecretResponseModel = undefined; secretToken = undefined"
+                        />
                     </template>
                 </v-container>
             </v-card>
@@ -475,22 +232,5 @@ function copyToClipboard(name: string, text: string | null) {
 </template>
 
 <style>
-.v-textarea--auto-grow .v-field__input {
-    overflow-y: scroll;
-    -ms-overflow-style: none; /* Internet Explorer 10+ */
-    scrollbar-width: none; /* Firefox */
-}
 
-.v-textarea--auto-grow .v-field__input::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
-}
-
-.v-text-field.text-masking .v-field__input {
-    font-family: 'Flow Block', cursive;
-    filter: opacity(0.8);
-}
-
-input[type="password"] {
-    font-family: Flow Block, cursive;
-}
 </style>

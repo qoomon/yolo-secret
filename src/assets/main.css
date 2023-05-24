@@ -5,4 +5,21 @@
   padding: 0;
 }
 
+input[type="password"] {
+  font-family: Flow Block, cursive;
+}
 
+.textarea-masking textarea{
+  font-family: 'Flow Block', cursive;
+  filter: opacity(0.8);
+}
+
+.v-textarea--auto-grow .v-field__input {
+  overflow-y: scroll;
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+.v-textarea--auto-grow .v-field__input::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}

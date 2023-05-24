@@ -25,13 +25,13 @@ This is a web app to share secrets in an easy but secure way.
 
 ### TODO
 - Use redis hash set for storing secret data and metadata like status and password attempts
-- Use path parameter instead of hash value for secret id
+- Add a status indicator for secret reveal screen instead of the check button
 - Delete secrets after three wrong passphrase attempts
+
 - Add a passphrase strength indicator
 - Add a passphrase generator
-- Add a status indicator for secret reveal screen instead of the check button
-- Hide Secret reveal url by default
-- Disable suggestion for password input
+- Use path parameter instead of hash value for secret id
+
 
 ### Run Local
 ```sh
@@ -39,3 +39,8 @@ npm install
 
 npx vercel dev
 ```
+
+### Operations Notes
+- Delete all secrets from redis:
+  - `EVAL "return redis.call('del', unpack(redis.call('keys', ARGV[1])))" 0 *`
+

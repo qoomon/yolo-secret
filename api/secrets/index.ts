@@ -3,16 +3,17 @@ import * as formidable from 'formidable';
 import * as fs from "fs";
 import {IncomingMessage} from "http";
 import * as secretStore from "../_lib/secret-store";
-import {SecretObject} from "../_lib/secret-store";
+import {SecretData} from "../_lib/secret-store";
 import {BASE64_REGEX} from "../_lib/utils";
+import {
+    SECRET_DATA_MAX_CHARS,
+    SECRET_DATA_MAX_SIZE,
+    SECRET_NAME_MAX_CHARS,
+    SECRET_PASSPHRASE_MAX_LENGTH,
+    SECRET_TTL_DEFAULT,
+    SECRET_TTL_MAX, SECRET_TTL_MIN
+} from "../_lib/config";
 
-const SECRET_DATA_MAX_SIZE = 1024 * 1024 * 10 // 10 megabytes
-const SECRET_DATA_MAX_CHARS = Math.floor(SECRET_DATA_MAX_SIZE / 3 * 4); // base64 encoded data char count
-const SECRET_NAME_MAX_CHARS = 128; // 128 characters
-const SECRET_TTL_MIN = 60 * 5; // 5 minutes
-const SECRET_TTL_MAX = 60 * 60 * 24 * 14; // 14 days
-const SECRET_TTL_DEFAULT = 60 * 60 * 24 * 7; // 7 days
-const SECRET_PASSPHRASE_MAX_LENGTH = 32;
 
 export default async (request: VercelRequest, response: VercelResponse) => {
     switch (request.method) {
@@ -25,7 +26,7 @@ export default async (request: VercelRequest, response: VercelResponse) => {
 };
 
 async function handlePostSecret(request: VercelRequest, response: VercelResponse) {
-    let addSecretParams: { value: SecretObject, ttl: number, passphrase?: string } = null
+    let addSecretParams: { data: SecretData, ttl: number, passphrase?: string } = null
 
     switch (request.headers['content-type']?.split(';')[0].trim()) {
         case 'multipart/form-data': {
@@ -45,39 +46,51 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
                 .send({error: `ambiguous name field`});
 
             addSecretParams = {
-                value: formData.files.data
+                data: formData.files.data
                     ? {
                         type: 'file',
-                        data: fs.readFileSync(formData.files.data.filepath).toString('base64'),
                         name: formData.fields.name as string || formData.files.data.originalFilename,
+                        data: fs.readFileSync(formData.files.data.filepath).toString('base64'),
                     }
                     : {
                         type: 'text',
                         data: formData.fields.data as string || '',
-                        name: formData.fields.name as string || 'secret',
                     },
                 ttl: formData.fields.ttl ? Number.parseInt(formData.fields.ttl) : SECRET_TTL_DEFAULT,
-                passphrase: formData.fields.passphrase || '',
+                passphrase: formData.fields.passphrase,
             };
 
             break;
         }
         case 'application/json':
         case undefined: {
-            if (!['', 'text', 'file'].includes(request.body.type)) return response.status(400)
+            if (![undefined, 'text', 'file'].includes(request.body.type)) return response.status(400)
                 .send({error: `type field can only be 'text' or 'file'`});
 
-            if (request.body.type === 'file' && !request.body.data?.match(BASE64_REGEX)) return response.status(400)
-                .send({error: `data field must be a valid data url`});
+            if (request.body.type === 'file') {
+                if (!request.body.data?.match(BASE64_REGEX)) return response.status(400)
+                    .send({error: `file data field must be encoded as base64`});
+                if (!request.body.name) return response.status(400)
+                    .send({error: `file name field must not be empty`});
+                if (request.body.name.length > SECRET_NAME_MAX_CHARS) return response.status(400)
+                    .send({error: `file name field must be less than ${SECRET_NAME_MAX_CHARS} characters long`})
+            }
 
             addSecretParams = {
-                value: {
-                    type: request.body.type || 'text',
-                    data: request.body.data || '',
-                    name: request.body.name || 'secret',
-                },
-                ttl: request.body.ttl ? Number.parseInt(request.body.ttl) : SECRET_TTL_DEFAULT,
-                passphrase: request.body.passphrase || '',
+                data: request.body.type === 'file'
+                    ? {
+                        type: 'file',
+                        name: request.body.name || '',
+                        data: request.body.data || '',
+                    }
+                    : {
+                        type: 'text',
+                        data: request.body.data || '',
+                    },
+                ttl: request.body.ttl
+                    ? Number.parseInt(request.body.ttl)
+                    : SECRET_TTL_DEFAULT,
+                passphrase: request.body.passphrase,
             };
             break;
         }
@@ -86,21 +99,18 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
                 .send({error: 'Unsupported media type'});
     }
 
-    if (!addSecretParams.value.data.length) return response.status(400)
+    if (!addSecretParams.data.data.length) return response.status(400)
         .send({error: `data field must not be empty`});
-    if (addSecretParams.value.data.length > SECRET_DATA_MAX_CHARS) return response.status(400)
+    if (addSecretParams.data.data.length > SECRET_DATA_MAX_CHARS) return response.status(400)
         .send({error: `data field must be less than ${SECRET_DATA_MAX_CHARS} characters long`});
-
-    if (addSecretParams.value.name?.length > SECRET_NAME_MAX_CHARS) return response.status(400)
-        .send({error: `name must be less than ${SECRET_NAME_MAX_CHARS} characters long`});
 
     if (addSecretParams.ttl < SECRET_TTL_MIN) return response.status(400)
         .send({error: `ttl value must be greater than ${SECRET_TTL_MIN}`});
     if (addSecretParams.ttl > SECRET_TTL_MAX) return response.status(400)
         .send({error: `ttl value must be less than ${SECRET_TTL_MAX}`});
 
-    if (addSecretParams.passphrase.length > SECRET_PASSPHRASE_MAX_LENGTH) return response.status(400)
-        .send({error: `passphrase length must be less than ${SECRET_PASSPHRASE_MAX_LENGTH}`});
+    if (addSecretParams.passphrase?.length > SECRET_PASSPHRASE_MAX_LENGTH) return response.status(400)
+        .send({error: `passphrase length must be less than ${SECRET_PASSPHRASE_MAX_LENGTH} characters long`});
 
     const secretToken = await secretStore.addSecret(addSecretParams);
 

@@ -1,12 +1,16 @@
+
 import './assets/main.css'
 import {createApp} from 'vue'
+// @ts-ignore
 import App from './App.vue'
+// @ts-ignore
 import {createVuetify} from 'vuetify'
-import '@mdi/font/css/materialdesignicons.min.css'
-import 'vuetify/styles'
+// @ts-ignore
 import colors from 'vuetify/lib/util/colors'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
+import '@mdi/font/css/materialdesignicons.min.css'
+import 'vuetify/styles'
 
 const vuetify = createVuetify({
     components,
