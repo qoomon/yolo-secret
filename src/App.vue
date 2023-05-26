@@ -20,7 +20,7 @@ function toggleTheme() {
             <v-container style="width: 100%; max-width: 464px; padding-top: 2em;">
                 <router-link to="/">
                     <div style="display: flex; align-items: center;">
-                        <img src="@/assets/app.png" alt="YOLO Secret App Icon"
+                        <img src="assets/appicon.png" alt="YOLO Secret App Icon"
                              style="height: 2.5em; margin-right: 0.5em;">
                         <h2 class="text-center" style="opacity: 0.6;">YOLO Secret</h2>
                     </div>

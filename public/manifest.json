@@ -1,0 +1,25 @@
+{
+  "name": "YOLO Secret",
+  "short_name": "YOLO Secret",
+  "description": "Share a Secret",
+  "lang": "en",
+  "start_url": "./",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "black",
+  "theme_color": "black",
+  "icons": [
+    {
+      "src": "/appicon.png",
+      "type": "image/png",
+      "sizes": "120x120",
+      "purpose": "any"
+    },
+    {
+      "src": "/appicon.png",
+      "type": "image/png",
+      "sizes": "120x120",
+      "purpose": "maskable"
+    }
+  ]
+}
