@@ -117,7 +117,7 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
     return response.status(201)
         .send({
             token: secretToken,
-            htmlUrl: `${request.headers['x-forwarded-proto']}://${request.headers['x-forwarded-host']}#${secretToken}`,
+            htmlUrl: `${request.headers['x-forwarded-proto']}://${request.headers['x-forwarded-host']}/${secretToken}`,
         });
 }
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import {ref, defineProps, withDefaults, onMounted} from 'vue'
+import {ref, defineProps, onMounted} from 'vue'
 import {readFileAsBase64String} from "@/lib/utils";
 
 const ttlSelectionItems: { title: string, value: number, default?: boolean }[] = [
@@ -17,7 +17,7 @@ const ttlSelectionItems: { title: string, value: number, default?: boolean }[] =
 const emit = defineEmits(['submit'])
 const props = defineProps<{
     modelValue: {
-        type?: string,
+        type: 'text' | 'file',
         data?: string,
         name?: string,
         ttl?: number,
