@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import {ref, defineProps, onMounted} from 'vue'
+import {ref, onMounted} from 'vue'
 import {readFileAsBase64String} from "@/lib/utils";
 
 const ttlSelectionItems: { title: string, value: number, default?: boolean }[] = [
