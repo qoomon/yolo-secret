@@ -2,7 +2,7 @@
   "devCommand": "npm run dev",
 
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/" },
+    { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
