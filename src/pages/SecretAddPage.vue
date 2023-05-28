@@ -32,12 +32,6 @@ const addSecretResponseModel = ref<{
 } | undefined>
 ();
 
-function dismissSecretResponse() {
-    addSecretResponseModel.value = undefined;
-}
-
-onBeforeUnmount(dismissSecretResponse);
-
 async function addSecret() {
     try {
         addSecretResponseModel.value = await axios
@@ -69,7 +63,7 @@ async function addSecret() {
                 <secret-add-url-view
                         v-else
                         :url="addSecretResponseModel.htmlUrl"
-                        @dismiss="dismissSecretResponse();"/>
+                        @dismiss="addSecretResponseModel = undefined;"/>
             </v-container>
         </v-card>
     </v-container>
