@@ -1,6 +1,6 @@
 <script setup lang="ts" xmlns="http://www.w3.org/1999/html">
 
-import {ref} from "vue";
+import {onBeforeUnmount, ref} from "vue";
 import axios from "axios"
 import SecretAddView from "@/components/SecretAddView.vue";
 import SecretAddUrlView from "@/components/SecretAddUrlView.vue";
@@ -31,6 +31,12 @@ const addSecretResponseModel = ref<{
     htmlUrl: string,
 } | undefined>
 ();
+
+function dismissSecretResponse() {
+    addSecretResponseModel.value = undefined;
+}
+
+onBeforeUnmount(dismissSecretResponse);
 
 async function addSecret() {
     try {
@@ -63,7 +69,7 @@ async function addSecret() {
                 <secret-add-url-view
                         v-else
                         :url="addSecretResponseModel.htmlUrl"
-                        @dismiss="addSecretResponseModel = undefined;"/>
+                        @dismiss="dismissSecretResponse();"/>
             </v-container>
         </v-card>
     </v-container>
