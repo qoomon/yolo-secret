@@ -3,22 +3,22 @@ import * as crypto from "crypto";
 import {CipherGCMTypes} from "crypto";
 import * as argon2 from "argon2";
 import {
-    SECRET_PASSPHRASE_MAX_ATTEMPTS,
+    SECRET_ID_LENGTH,
+    SECRET_PASSPHRASE_MAX_ATTEMPTS, SECRET_PASSWORD_CHARACTERS, SECRET_PASSWORD_LENGTH,
     SECRET_TOMBSTONE_TTL,
 } from "./config";
 
-const PASSWORD_LENGTH: number = 32;
-const PASSWORD_CHARACTERS: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
 
 export async function addSecret(params: {
     data: SecretData,
     ttl: number,
     passphrase?: string
-}): Promise<SecretToken> {
-    const encryptionPassword = generatePassword(PASSWORD_LENGTH, PASSWORD_CHARACTERS);
-    const encryptionPasswordHashBase64 = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
-    const secretStoreKey = `secret:${encryptionPasswordHashBase64}`
+}): Promise<{ id: SecretId, password: string }> {
+    const secretId = generatePassword(SECRET_ID_LENGTH, SECRET_PASSWORD_CHARACTERS);
+
+    const encryptionPassword = generatePassword(SECRET_PASSWORD_LENGTH, SECRET_PASSWORD_CHARACTERS);
 
     const secret: Secret = {
         data: encrypt(params.data, encryptionPassword),
@@ -33,24 +33,26 @@ export async function addSecret(params: {
         },
     };
 
+    const secretStoreKey = `secret:${secretId}`
     await kv.multi()
         .json.set(secretStoreKey, '$', secret)
         .expireat(secretStoreKey, secret.meta.expiresAt)
         .exec();
 
-    return encryptionPassword;
+    return {
+        id: secretId,
+        password: encryptionPassword,
+    };
 }
 
 
 export async function getSecretData(params: {
-    token: SecretToken,
-    passphrase?: string
+    id: SecretId,
+    password?: string,
+    passphrase?: string,
 }): Promise<SecretData | null> {
 
-    const encryptionPassword = params.token;
-    const encryptionPasswordHashBase64 = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
-    const secretStoreKey = `secret:${encryptionPasswordHashBase64}`
-
+    const secretStoreKey = `secret:${params.id}`
     const secret: Secret = (await kv.json.get(secretStoreKey, '$'))?.[0];
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
@@ -84,27 +86,23 @@ export async function getSecretData(params: {
         .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
         .expireat(secretStoreKey, expiresAt)
         .exec();
-    return decrypt(secret.data, encryptionPassword);
+    return decrypt(secret.data, params.password);
 }
 
 export async function getSecretMetaData(params: {
-    token: SecretToken,
+    id: SecretId,
 }): Promise<SecretMetaData | null> {
 
-    const encryptionPassword = params.token;
-    const encryptionPasswordHash = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
-    const secretStoreKey = `secret:${encryptionPasswordHash}`
+    const secretStoreKey = `secret:${params.id}`
 
     return (await kv.json.get(secretStoreKey, '$.meta'))?.[0];
 }
 
 export async function deleteSecret(params: {
-    token: SecretToken,
+    id: SecretId,
 }): Promise<boolean> {
 
-    const encryptionPassword = params.token;
-    const encryptionPasswordHash = Buffer.from(await calculateArgon2Hash(encryptionPassword, false)).toString('base64');
-    const secretStoreKey = `secret:${encryptionPasswordHash}`
+    const secretStoreKey = `secret:${params.id}`
 
     const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
     await kv.multi()
@@ -182,7 +180,7 @@ async function calculateArgon2Hash(password: string, salt: boolean = true) {
 
 // ----------------------------------------------------------------------------
 
-export type SecretToken = string;
+export type SecretId = string;
 export type SecretStatus = 'UNREAD' | 'READ' | 'TOO_MANY_PASSPHRASE_ATTEMPTS' | 'DELETED'
 export type Secret = {
     data?: string, // encrypted and base64 encoded SecretData

@@ -15,7 +15,7 @@ const snackbar = ref({
     message: null as string | null,
 });
 
-const secretToken = route.params.token;
+const secretId = route.params.id;
 const secretMetaData = ref<{
     status: 'UNREAD' | 'READ' | 'TOO_MANY_PASSPHRASE_ATTEMPTS' | 'DELETED',
     expiresAt: number,
@@ -28,7 +28,7 @@ onMounted(async () => {
 async function getSecretMetaData() {
     try {
         secretMetaData.value = await axios
-            .get(`/api/secrets/${secretToken}/meta`)
+            .get(`/api/secrets/${secretId}/meta`)
             .then((response) => response.data)
     } catch (e) {
         if (e.response.status === 404) {
@@ -64,8 +64,9 @@ const getSecretResponseModel = ref<{
 async function getSecretData() {
     try {
         getSecretResponseModel.value = await axios
-            .get(`/api/secrets/${secretToken}`, {
+            .get(`/api/secrets/${secretId}`, {
                 params: {
+                    password: location.hash.substring(1),
                     passphrase: getSecretRequestModel.value.passphrase,
                 }
             })

@@ -27,7 +27,8 @@ const addSecretRequestModel = ref<{
 
 
 const addSecretResponseModel = ref<{
-    token: string,
+    id: string,
+    password: string,
     htmlUrl: string,
 } | undefined>
 ();

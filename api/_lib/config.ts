@@ -1,4 +1,6 @@
-export const SECRET_TOKEN_LENGTH = 32;
+export const SECRET_ID_LENGTH = 16;
+export const SECRET_PASSWORD_CHARACTERS: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+export const SECRET_PASSWORD_LENGTH: number = 32;
 export const SECRET_DATA_MAX_SIZE = 1024 * 64  // 64 KB
 export const SECRET_DATA_MAX_CHARS = Math.floor(SECRET_DATA_MAX_SIZE / 3 * 4); // base64 encoded data char count
 export const SECRET_NAME_MAX_CHARS = 128; // 128 characters

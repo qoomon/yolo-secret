@@ -112,12 +112,12 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
     if (addSecretParams.passphrase?.length > SECRET_PASSPHRASE_MAX_LENGTH) return response.status(400)
         .send({error: `passphrase length must be less than ${SECRET_PASSPHRASE_MAX_LENGTH} characters long`});
 
-    const secretToken = await secretStore.addSecret(addSecretParams);
-
+    const secret = await secretStore.addSecret(addSecretParams);
     return response.status(201)
         .send({
-            token: secretToken,
-            htmlUrl: `${request.headers['x-forwarded-proto']}://${request.headers['x-forwarded-host']}/${secretToken}`,
+            id: secret.id,
+            password: secret.password,
+            htmlUrl: `${request.headers['x-forwarded-proto']}://${request.headers['x-forwarded-host']}/${secret.id}#${secret.password}`,
         });
 }
 

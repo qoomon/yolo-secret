@@ -21,7 +21,7 @@ app.use(createRouter({
       component: () => import('@/pages/SecretAddPage.vue'),
     },
     {
-      path: '/:token',
+      path: '/:id',
       component: () => import('@/pages/SecretGetPage.vue'),
     },
     { path: '/:path(.*)', redirect: '/' }

@@ -1,7 +1,7 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
 import * as secretStore from "../../_lib/secret-store";
 import {firstValueOf} from "../../_lib/utils";
-import {SECRET_PASSPHRASE_MAX_LENGTH, SECRET_TOKEN_LENGTH} from "../../_lib/config";
+import {SECRET_ID_LENGTH} from "../../_lib/config";
 
 export default async (request: VercelRequest, response: VercelResponse) => {
     switch (request.method) {
@@ -15,12 +15,10 @@ export default async (request: VercelRequest, response: VercelResponse) => {
 };
 
 async function handleGetSecretMetaData(request: VercelRequest, response: VercelResponse) {
-    const secretToken = firstValueOf(request.query.token) || ''
-    if (secretToken.length !== SECRET_TOKEN_LENGTH) return response.status(400)
-        .send({error: 'invalid token'});
+    const secretId = firstValueOf(request.query.id) || ''
 
     const secretMetaData = await secretStore.getSecretMetaData({
-        token: secretToken,
+        id: secretId,
     });
 
     if (!secretMetaData) {

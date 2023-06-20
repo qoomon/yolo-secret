@@ -1,7 +1,7 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
 import * as secretStore from "../../_lib/secret-store";
 import {firstValueOf} from "../../_lib/utils";
-import {SECRET_PASSPHRASE_MAX_LENGTH, SECRET_TOKEN_LENGTH} from "../../_lib/config";
+import {SECRET_ID_LENGTH, SECRET_PASSPHRASE_MAX_LENGTH, SECRET_PASSWORD_LENGTH} from "../../_lib/config";
 import {PasswordError} from "../../_lib/secret-store";
 
 export default async (request: VercelRequest, response: VercelResponse) => {
@@ -16,23 +16,13 @@ export default async (request: VercelRequest, response: VercelResponse) => {
 };
 
 async function handleGetSecretData(request: VercelRequest, response: VercelResponse) {
-    const secretToken = firstValueOf(request.query.token) || ''
-    if (secretToken.length !== SECRET_TOKEN_LENGTH) {
-        response.status(400)
-            .send({error: 'invalid token'});
-        return;
-    }
-
+    const secretId = firstValueOf(request.query.id) || ''
+    const secretPassword = firstValueOf(request.query.password) || ''
     const secretPassphrase = firstValueOf(request.query.passphrase) || ''
-    if (secretPassphrase.length > SECRET_PASSPHRASE_MAX_LENGTH) {
-        response.status(400)
-            .send({error: `passphrase length must be less than ${SECRET_PASSPHRASE_MAX_LENGTH}`});
-        return;
-    }
-
 
     const secretData = await secretStore.getSecretData({
-        token: secretToken,
+        id: secretId,
+        password: secretPassword,
         passphrase: secretPassphrase,
     }).catch(error => {
         if (error instanceof PasswordError) {
