@@ -2,9 +2,9 @@ import type {VercelRequest, VercelResponse} from '@vercel/node';
 import * as formidable from 'formidable';
 import * as fs from "fs";
 import {IncomingMessage} from "http";
-import * as secretStore from "../_lib/secret-store";
-import {SecretData} from "../_lib/secret-store";
-import {BASE64_REGEX} from "../_lib/utils";
+import * as secretStore from "../_lib/secret-store.js";
+import {SecretData} from "../_lib/secret-store.js";
+import {BASE64_REGEX} from "../_lib/utils.js";
 import {
     SECRET_DATA_MAX_CHARS,
     SECRET_DATA_MAX_SIZE,
@@ -12,7 +12,7 @@ import {
     SECRET_PASSPHRASE_MAX_LENGTH,
     SECRET_TTL_DEFAULT,
     SECRET_TTL_MAX, SECRET_TTL_MIN
-} from "../_lib/config";
+} from "../_lib/config.js";
 
 
 export default async (request: VercelRequest, response: VercelResponse) => {

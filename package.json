@@ -2,6 +2,7 @@
   "name": "yolo-secret",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite --port $PORT",
     "build": "run-p type-check build-only",
@@ -14,7 +15,7 @@
     "@vercel/kv": "^0.2.0",
     "@vercel/node": "^2.14.2",
     "argon2": "^0.30.3",
-    "axios": "^1.6.0",
+    "axios": "^1.6.8",
     "formidable": "^2.1.1",
     "humanize-duration": "^3.28.0",
     "vue": "^3.3.1",

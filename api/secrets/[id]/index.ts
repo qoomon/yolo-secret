@@ -1,8 +1,8 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
-import * as secretStore from "../../_lib/secret-store";
-import {firstValueOf} from "../../_lib/utils";
+import * as secretStore from "../../_lib/secret-store.js";
+import {firstValueOf} from "../../_lib/utils.js";
 import {SECRET_ID_LENGTH, SECRET_PASSPHRASE_MAX_LENGTH, SECRET_PASSWORD_LENGTH} from "../../_lib/config";
-import {PasswordError} from "../../_lib/secret-store";
+import {PasswordError} from "../../_lib/secret-store.js";
 
 export default async (request: VercelRequest, response: VercelResponse) => {
     switch (request.method) {

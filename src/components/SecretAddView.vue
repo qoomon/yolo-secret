@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import {ref, onMounted} from 'vue'
-import {readFileAsBase64String} from "@/lib/utils";
+import {readFileAsBase64String} from "@/lib/utils.js";
 
 const ttlSelectionItems: { title: string, value: number, default?: boolean }[] = [
     {title: '5 Minutes', value: 60 * 5},
@@ -28,9 +28,10 @@ onMounted(() => {
     props.modelValue.ttl = ttlSelectionItems.find((item) => item.default)?.value
 })
 
+const state = ref<'prepare'|'submitted'>('prepare')
 const fileInput = ref()
 
-async function modelValue_setFile(file) {
+async function modelValue_setFile(file: File) {
     if (file) {
         props.modelValue.type = 'file';
         props.modelValue.data = await readFileAsBase64String(file);
@@ -42,6 +43,7 @@ async function modelValue_setFile(file) {
 }
 
 function onsubmit() {
+    state.value = 'submitted'
     emit('submit', props.modelValue)
 }
 
@@ -111,9 +113,10 @@ function onsubmit() {
         <v-btn
                 type="submit"
                 color="primary"
-                variant="elevated"
+                :variant="state === 'submitted' ? 'outlined' : 'elevated'"
                 text="Create Secret"
-                :disabled="!props.modelValue.data"
+                :disabled="!props.modelValue.data || state === 'submitted'"
+                :loading="state === 'submitted'"
         ></v-btn>
     </v-form>
 </template>

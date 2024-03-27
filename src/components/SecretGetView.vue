@@ -14,8 +14,9 @@ const props = defineProps<{
     },
 }>()
 
+const state = ref<'pending'|'revealed'>('pending')
 const now = ref(new Date());
-let nowInterval;
+let nowInterval = 0;
 onMounted(() => {
     nowInterval = setInterval(() => {
         now.value = new Date();
@@ -26,12 +27,13 @@ onBeforeUnmount(() => {
 })
 
 const expiresAtDisplayText = computed(() => {
-    const duration = props.metaData?.expiresAt * 1000 - now.value.getTime();
+    const duration = (props.metaData?.expiresAt ?? 0) * 1000 - now.value.getTime();
     if (duration > 0) return "Expires in " + formatDuration(duration, {round: true});
     return "Expired";
 });
 
 function onReveal() {
+    state.value = 'revealed'
     emit('reveal')
 }
 
@@ -75,10 +77,11 @@ const metaDataStatusText = computed(() => {
                 v-else-if="metaData?.status === 'UNREAD'"
                 type="submit"
                 color="primary"
-                variant="elevated"
+                :variant="state === 'revealed' ? 'outlined' : 'elevated'"
                 text="Reveal Secret"
                 :block="true"
-                :disabled="metaData?.passphrase === true && !modelValue.passphrase"
+                :disabled="(metaData?.passphrase === true && !modelValue.passphrase) || state === 'revealed'"
+                :loading="state === 'revealed'"
         ></v-btn>
         <div v-else class="text-body-1 text-center text-error">
             {{ metaDataStatusText }}

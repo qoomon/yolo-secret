@@ -59,7 +59,7 @@ const snackbar = ref({
             color="primary"
             max-rows="16"
             rows="4"
-            auto-grow="auto-grow"
+            :auto-grow="true"
             :class="{'textarea-masking': !secretDataVisibility}"
     >
         <template v-slot:append-inner>

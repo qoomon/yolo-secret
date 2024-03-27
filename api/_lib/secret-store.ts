@@ -6,7 +6,7 @@ import {
     SECRET_ID_LENGTH,
     SECRET_PASSPHRASE_MAX_ATTEMPTS, SECRET_PASSWORD_CHARACTERS, SECRET_PASSWORD_LENGTH,
     SECRET_TOMBSTONE_TTL,
-} from "./config";
+} from "./config.js";
 
 
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
