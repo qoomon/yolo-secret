@@ -33,7 +33,7 @@
     "solid-start": "^0.2.26",
     "solid-start-vercel": "^0.2.26",
     "typescript": "^5.0.4",
-    "vite": "^4.5.2",
+    "vite": "^4.5.3",
     "vite-plugin-node": "^3.0.2",
     "vite-plugin-vuetify": "^1.0.2",
     "vite-ssr": "^0.17.1",
