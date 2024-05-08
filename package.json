@@ -14,7 +14,7 @@
     "@types/formidable": "^2.0.6",
     "@vercel/kv": "^0.2.0",
     "@vercel/node": "^2.14.2",
-    "argon2": "^0.30.3",
+    "argon2": "^0.40.1",
     "axios": "^1.6.8",
     "formidable": "^3.2.4",
     "humanize-duration": "^3.28.0",

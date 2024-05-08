@@ -165,15 +165,9 @@ function generatePassword(length, characters) {
     return result;
 }
 
-async function calculateArgon2Hash(password: string, salt: boolean = true) {
+async function calculateArgon2Hash(password: string) {
     return await argon2.hash(password, {
         type: argon2.argon2id,
-        saltLength: 16,
-        // if salt is undefined, argon2 will generate a random salt with saltLength
-        salt: !salt ? Buffer.from("00000000") : undefined,
-        memoryCost: 65536,     // Memory usage in KiB ~64MB
-        timeCost: 4,           // Number of iterations
-        parallelism: 2,        // Number of parallel threads
         hashLength: 32,        // Hash output length in bytes
     })
 }
