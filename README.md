@@ -24,14 +24,7 @@ This is a web app to share secrets in an easy but secure way.
 ## Development
 
 ### TODO
-- Use redis hash set for storing secret data and metadata like status and password attempts
-- Add a status indicator for secret reveal screen instead of the check button
-- Delete secrets after three wrong passphrase attempts
-
-- Add a passphrase strength indicator
 - Add a passphrase generator
-- Use path parameter instead of hash value for secret id
-
 
 ### Run Local
 ```sh
