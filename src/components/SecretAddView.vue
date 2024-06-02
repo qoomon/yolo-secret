@@ -85,7 +85,7 @@ function onsubmit() {
                 color="primary"
                 prepend-icon=""
                 prepend-inner-icon="mdi-file"
-                @update:model-value="async (files) => modelValue_setFile(files[0])"
+                @update:model-value="async (files) => modelValue_setFile(Array.isArray(files) ? files[0] : files)"
         ></v-file-input>
 
         <v-select

@@ -37,12 +37,6 @@ function onReveal() {
     emit('reveal')
 }
 
-const snackbar = ref({
-    active: false,
-    color: 'success' as 'success' | 'error' | 'info' | 'warning',
-    message: null as string | null,
-});
-
 const metaDataStatusText = computed(() => {
     if (!props.metaData) return '...';
     if (props.metaData.status === 'UNREAD') return 'Not Yet Revealed';

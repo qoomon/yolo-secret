@@ -3,13 +3,6 @@ import {ref} from "vue";
 import {copyToClipboard, downloadBase64File} from "@/lib/utils";
 
 const emit = defineEmits(['dismiss']);
-const props = defineProps<{
-    secret: {
-        type: 'text' | 'file',
-        data: string,
-        name?: string,
-    },
-}>();
 
 function onDismiss() {
     emit('dismiss')
@@ -20,7 +13,6 @@ const secretDataVisibility = ref(false)
 function toggleSecretDataVisibility() {
     secretDataVisibility.value = !secretDataVisibility.value
 }
-
 
 const snackbar = ref({
     active: false,

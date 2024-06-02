@@ -1,6 +1,5 @@
 <script setup lang="ts" xmlns="http://www.w3.org/1999/html">
 
-import {ref, watchEffect} from "vue";
 import {useTheme} from 'vuetify'
 
 // ----------------------------------------------------------------------------

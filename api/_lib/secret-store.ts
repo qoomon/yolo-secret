@@ -2,12 +2,12 @@ import {kv} from "@vercel/kv";
 import * as crypto from "crypto";
 import {CipherGCMTypes} from "crypto";
 import * as argon2 from "argon2";
+import cryptoRandomString from "crypto-random-string";
 import {
     SECRET_ID_LENGTH,
     SECRET_PASSPHRASE_MAX_ATTEMPTS, SECRET_PASSWORD_CHARACTERS, SECRET_PASSWORD_LENGTH,
     SECRET_TOMBSTONE_TTL,
 } from "./config.js";
-
 
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
 
@@ -16,9 +16,10 @@ export async function addSecret(params: {
     ttl: number,
     passphrase?: string
 }): Promise<{ id: SecretId, password: string }> {
-    const secretId = generatePassword(SECRET_ID_LENGTH, SECRET_PASSWORD_CHARACTERS);
 
-    const encryptionPassword = generatePassword(SECRET_PASSWORD_LENGTH, SECRET_PASSWORD_CHARACTERS);
+    const secretId = cryptoRandomString({length: SECRET_ID_LENGTH, type: 'url-safe'});
+
+    const encryptionPassword = cryptoRandomString({length: SECRET_PASSWORD_LENGTH, type: 'ascii-printable'});
 
     const secret: Secret = {
         data: encrypt(params.data, encryptionPassword),
@@ -154,15 +155,6 @@ function decrypt(encryptedValue: string, password: string): SecretData {
     const dataString = decipher.update(encryptedData, 'base64', 'utf8')
         + decipher.final('utf8')
     return JSON.parse(dataString);
-}
-
-function generatePassword(length, characters) {
-    let result = '';
-    const randomBytes = crypto.randomBytes(length);
-    for (let i = 0; i < length; i++) {
-        result += characters[randomBytes[i] % characters.length];
-    }
-    return result;
 }
 
 async function calculateArgon2Hash(password: string) {

@@ -1,6 +1,6 @@
 <script setup lang="ts" xmlns="http://www.w3.org/1999/html">
 
-import {onMounted, ref, watchEffect} from "vue";
+import {onMounted, ref} from "vue";
 import {useRoute} from 'vue-router';
 import axios from "axios"
 import SecretGetView from "@/components/SecretGetView.vue";
@@ -30,7 +30,7 @@ async function getSecretMetaData() {
         secretMetaData.value = await axios
             .get(`/api/secrets/${secretId}/meta`)
             .then((response) => response.data)
-    } catch (e) {
+    } catch (e: any) {
         if (e.response.status === 404) {
             snackbar.value = {
                 active: true,
@@ -73,7 +73,7 @@ async function getSecretData() {
             .then((response) => response.data);
         // clear secret data
         getSecretRequestModel.value = {};
-    } catch (e) {
+    } catch (e: any) {
         if (e.response.status === 404) {
             snackbar.value = {
                 active: true,
