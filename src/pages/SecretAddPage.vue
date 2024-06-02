@@ -1,6 +1,6 @@
 <script setup lang="ts" xmlns="http://www.w3.org/1999/html">
 
-import {onBeforeUnmount, ref} from "vue";
+import {ref} from "vue";
 import axios from "axios"
 import SecretAddView from "@/components/SecretAddView.vue";
 import SecretAddUrlView from "@/components/SecretAddUrlView.vue";
@@ -21,7 +21,7 @@ const addSecretRequestModel = ref<{
     type: 'text' | 'file',
     data?: string,
     name?: string,
-    ttl?: string,
+    ttl?: number,
     passphrase?: string,
 }>({type: 'text'});
 
@@ -40,7 +40,7 @@ async function addSecret() {
             .then((response) => response.data)
         // clear secret data
         addSecretRequestModel.value = {type: 'text'};
-    } catch (e) {
+    } catch (e: any) {
         console.error(e)
         snackbar.value = {
             active: true,

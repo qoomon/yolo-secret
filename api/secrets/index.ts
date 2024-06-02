@@ -1,7 +1,6 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
-import * as formidable from 'formidable';
+import * as  formidable from 'formidable';
 import * as fs from "fs";
-import {IncomingMessage} from "http";
 import * as secretStore from "../_lib/secret-store.js";
 import {SecretData} from "../_lib/secret-store.js";
 import {BASE64_REGEX} from "../_lib/utils.js";
@@ -30,34 +29,35 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
 
     switch (request.headers['content-type']?.split(';')[0].trim()) {
         case 'multipart/form-data': {
-            const formData = await parseFormData(request, {
-                multiples: false, maxFiles: 1, maxFileSize: SECRET_DATA_MAX_SIZE, maxFields: 4,
-            });
+            const formData = await formidable.formidable({
+                multiples: false,
+                maxFiles: 1,
+                maxFileSize: SECRET_DATA_MAX_SIZE,
+                maxFields: 4,
+            }).parse(request).then(([fields, files]) => ({fields, files}));
 
             if ((formData.fields.data && formData.files.data)
-                || Array.isArray(formData.fields.data)
-                || Array.isArray(formData.files.data)) return response.status(400)
+                || formData.fields.data.length > 1
+                || formData.files.data.length > 1) return response.status(400)
                 .send({error: `ambiguous data field`});
-            if (Array.isArray(formData.fields.ttl)) return response.status(400)
+            if (formData.fields.ttl.length > 1) return response.status(400)
                 .send({error: `ambiguous ttl field`});
-            if (Array.isArray(formData.fields.passphrase)) return response.status(400)
+            if (formData.fields.passphrase.length > 1) return response.status(400)
                 .send({error: `ambiguous passphrase field`});
-            if (Array.isArray(formData.fields.name)) return response.status(400)
+            if (formData.fields.name.length > 1) return response.status(400)
                 .send({error: `ambiguous name field`});
 
             addSecretParams = {
-                data: formData.files.data
-                    ? {
+                data: formData.files.data[0] ? {
                         type: 'file',
-                        name: formData.fields.name as string || formData.files.data.originalFilename,
-                        data: fs.readFileSync(formData.files.data.filepath).toString('base64'),
-                    }
-                    : {
+                        name: formData.fields.name?.[0] || formData.files.data[0].originalFilename,
+                        data: fs.readFileSync(formData.files.data[0].filepath).toString('base64'),
+                    } : {
                         type: 'text',
-                        data: formData.fields.data as string || '',
+                        data: formData.fields.data?.[0] || '',
                     },
-                ttl: formData.fields.ttl ? Number.parseInt(formData.fields.ttl) : SECRET_TTL_DEFAULT,
-                passphrase: formData.fields.passphrase,
+                ttl: formData.fields.ttl?.[0] ? Number.parseInt(formData.fields.ttl[0]) : SECRET_TTL_DEFAULT,
+                passphrase: formData.fields.passphrase?.[0],
             };
 
             break;
@@ -119,12 +119,4 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
             password: secret.password,
             htmlUrl: `${request.headers['x-forwarded-proto']}://${request.headers['x-forwarded-host']}/${secret.id}#${secret.password}`,
         });
-}
-
-async function parseFormData(request: IncomingMessage, options: formidable.Options) {
-    return await new Promise((resolve, reject) => {
-        formidable.formidable(options).parse(request, (err: any, fields: formidable.Fields, files: formidable.Files) => {
-            if (err) reject(err); else resolve({fields, files});
-        });
-    }) as { fields: formidable.Fields, files: formidable.Files };
 }
