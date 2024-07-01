@@ -19,7 +19,7 @@
     "crypto-random-string": "^5.0.0",
     "formidable": "^3.5.1",
     "humanize-duration": "^3.32.1",
-    "vue": "^3.4.30",
+    "vue": "^3.4.31",
     "vue-router": "^4.3.2",
     "vuetify": "^3.6.10"
   },
