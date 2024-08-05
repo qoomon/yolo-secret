@@ -15,7 +15,7 @@
     "@vercel/kv": "^2.0.0",
     "@vercel/node": "^3.2.1",
     "argon2": "^0.40.3",
-    "axios": "^1.7.2",
+    "axios": "^1.7.3",
     "crypto-random-string": "^5.0.0",
     "formidable": "^3.5.1",
     "humanize-duration": "^3.32.1",
