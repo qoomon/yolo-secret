@@ -17,7 +17,7 @@
     "argon2": "^0.41.0",
     "axios": "^1.7.7",
     "crypto-random-string": "^5.0.0",
-    "formidable": "^3.5.1",
+    "formidable": "^3.5.2",
     "humanize-duration": "^3.32.1",
     "vue": "^3.5.12",
     "vue-router": "^4.4.5",
