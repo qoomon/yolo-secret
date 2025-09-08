@@ -13,7 +13,7 @@
   "dependencies": {
     "@types/formidable": "^3.4.5",
     "@vercel/kv": "^3.0.0",
-    "@vercel/node": "^5.3.17",
+    "@vercel/node": "^5.3.21",
     "argon2": "^0.44.0",
     "axios": "^1.11.0",
     "crypto-random-string": "^5.0.0",
