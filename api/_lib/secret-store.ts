@@ -13,6 +13,7 @@ import {
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
 
 const secretStore = await redis.createClient({url: process.env.REDIS_URL}).connect();
+const secretStoreKeyFor = (id: string) => `secret:${id}`;
 
 export async function addSecret(params: {
     data: SecretData,
@@ -37,9 +38,11 @@ export async function addSecret(params: {
         },
     };
 
-    const secretKey = `secret:${secretId}`;
-    await secretStore.json.set(secretKey, '$', secret);
-    await secretStore.expireAt(secretKey, secret.meta.expiresAt);
+    const secretKey = secretStoreKeyFor(secretId);
+    await secretStore.multi()
+        .json.set(secretKey, '$', secret)
+        .expireAt(secretKey, secret.meta.expiresAt)
+        .exec()
 
     return {
         id: secretId,
@@ -53,15 +56,15 @@ export async function getSecretData(params: {
     passphrase?: string,
 }): Promise<SecretData | null> {
 
-    const secretStoreKey = `secret:${params.id}`
-    const secret = (await secretStore.json.get(secretStoreKey)) as Secret;
+    const secretStoreKey = secretStoreKeyFor(params.id);
+    const secret = (await secretStore.json.get(secretStoreKey))?.[0] as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
     if (secret.passphrase || params.passphrase) {
         if (!secret.passphrase) throw new PasswordError('Unexpected passphrase');
 
         if (!params.passphrase || !await argon2.verify(secret.passphrase.hash, params.passphrase)) {
-            const passphraseAttempts = (await secretStore.json.numIncrBy(secretStoreKey, '$.passphrase.attempts', 1)) as number;
+            const passphraseAttempts = (await secretStore.json.numIncrBy(secretStoreKey, '$.passphrase.attempts', 1))[0] as number;
             if (passphraseAttempts >= SECRET_PASSPHRASE_MAX_ATTEMPTS) {
                 console.debug('Delete Secret.data and Secret.passphrase due to too many passphrase attempts');
                 await deleteSecret({id: params.id, status: 'TOO_MANY_PASSPHRASE_ATTEMPTS'});
@@ -80,7 +83,7 @@ export async function getSecretMetaData(params: {
     id: SecretId,
 }): Promise<SecretMetaData | null> {
 
-    const secretStoreKey = `secret:${params.id}`
+    const secretStoreKey = secretStoreKeyFor(params.id);
     return (await secretStore.json.get(secretStoreKey, {
         path: '$.meta'
     })) as SecretMetaData;
@@ -90,7 +93,7 @@ export async function deleteSecret(params: {
     id: SecretId,
     status: SecretStatus,
 }): Promise<boolean> {
-    const secretStoreKey = `secret:${params.id}`
+    const secretStoreKey = secretStoreKeyFor(params.id);
     const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
     await secretStore.multi()
         .json.del(secretStoreKey, {path: '$.data'})
@@ -98,7 +101,7 @@ export async function deleteSecret(params: {
         .json.del(secretStoreKey, {path: '$.meta.passphrase'})
         .json.set(secretStoreKey, '$.meta.status', params.status)
         .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
-        .expireat(secretStoreKey, expiresAt)
+        .expireAt(secretStoreKey, expiresAt)
         .exec();
 
     return true;
