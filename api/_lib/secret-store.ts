@@ -86,7 +86,7 @@ export async function getSecretMetaData(params: {
     const secretStoreKey = secretStoreKeyFor(params.id);
     return (await secretStore.json.get(secretStoreKey, {
         path: '$.meta'
-    })) as SecretMetaData;
+    }))?.[0] as SecretMetaData;
 }
 
 export async function deleteSecret(params: {
