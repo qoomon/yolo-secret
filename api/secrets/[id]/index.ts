@@ -32,7 +32,6 @@ async function handleGetSecretData(request: VercelRequest, response: VercelRespo
         }
         throw error;
     });
-    if (!secretData) return;
 
     if (!secretData) {
         response.status(404)

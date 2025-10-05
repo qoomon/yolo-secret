@@ -16,17 +16,14 @@ const secretStore = await redis.createClient({url: process.env.REDIS_URL}).conne
 const secretStoreKeyFor = (id: string) => `secret:${id}`;
 
 export async function addSecret(params: {
-    data: SecretData,
-    ttl: number,
-    passphrase?: string
+    data: SecretData, ttl: number, passphrase?: string
 }): Promise<{ id: SecretId, password: string }> {
-
-    const secretId = cryptoRandomString({length: SECRET_ID_LENGTH, type: "alphanumeric"});
-
     const encryptionPassword = cryptoRandomString({length: SECRET_PASSWORD_LENGTH, type: 'alphanumeric'});
+    const encryptedData = encrypt(params.data, encryptionPassword);
     const expiresAt = ttl2ExpireAt(params.ttl);
+
     const secret: Secret = {
-        data: encrypt(params.data, encryptionPassword),
+        data: encryptedData,
         passphrase: params.passphrase ? {
             hash: await calculateArgon2Hash(params.passphrase),
             attempts: 0,
@@ -38,6 +35,7 @@ export async function addSecret(params: {
         },
     };
 
+    const secretId = cryptoRandomString({length: SECRET_ID_LENGTH, type: "alphanumeric"});
     const secretKey = secretStoreKeyFor(secretId);
     await secretStore.multi()
         .json.set(secretKey, '$', secret)
@@ -51,11 +49,8 @@ export async function addSecret(params: {
 }
 
 export async function getSecretData(params: {
-    id: SecretId,
-    password?: string,
-    passphrase?: string,
+    id: SecretId, password?: string, passphrase?: string,
 }): Promise<SecretData | null> {
-
     const secretStoreKey = secretStoreKeyFor(params.id);
     const secret = (await secretStore.json.get(secretStoreKey))?.[0] as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
