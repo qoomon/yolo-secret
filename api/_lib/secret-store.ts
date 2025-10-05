@@ -52,7 +52,7 @@ export async function getSecretData(params: {
     id: SecretId, password?: string, passphrase?: string,
 }): Promise<SecretData | null> {
     const secretStoreKey = secretStoreKeyFor(params.id);
-    const secret = (await secretStore.json.get(secretStoreKey))?.[0] as Secret;
+    const secret = (await secretStore.json.get(secretStoreKey, {path: '$'}))?.[0] as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
     if (secret.passphrase || params.passphrase) {
