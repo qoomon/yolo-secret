@@ -24,7 +24,7 @@ export async function addSecret(params: {
     const secretId = cryptoRandomString({length: SECRET_ID_LENGTH, type: "alphanumeric"});
 
     const encryptionPassword = cryptoRandomString({length: SECRET_PASSWORD_LENGTH, type: 'alphanumeric'});
-
+    const expiresAt = ttl2ExpireAt(params.ttl);
     const secret: Secret = {
         data: encrypt(params.data, encryptionPassword),
         passphrase: params.passphrase ? {
@@ -33,7 +33,7 @@ export async function addSecret(params: {
         } : undefined,
         meta: {
             status: 'UNREAD',
-            expiresAt: Math.floor(Date.now() / 1000 + params.ttl),
+            expiresAt,
             passphrase: params.passphrase ? true : undefined,
         },
     };
@@ -41,7 +41,7 @@ export async function addSecret(params: {
     const secretKey = secretStoreKeyFor(secretId);
     await secretStore.multi()
         .json.set(secretKey, '$', secret)
-        .expireAt(secretKey, secret.meta.expiresAt)
+        .expireAt(secretKey, expiresAt)
         .exec()
 
     return {
@@ -94,7 +94,7 @@ export async function deleteSecret(params: {
     status: SecretStatus,
 }): Promise<boolean> {
     const secretStoreKey = secretStoreKeyFor(params.id);
-    const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
+    const expiresAt = ttl2ExpireAt(SECRET_TOMBSTONE_TTL);
     await secretStore.multi()
         .json.del(secretStoreKey, {path: '$.data'})
         .json.del(secretStoreKey, {path: '$.passphrase'})
@@ -105,6 +105,10 @@ export async function deleteSecret(params: {
         .exec();
 
     return true;
+}
+
+function ttl2ExpireAt(ttl: number) {
+    return Math.floor(Date.now() / 1000 + ttl);
 }
 
 // ----------------------------------------------------------------------------
