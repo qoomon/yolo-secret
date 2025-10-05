@@ -1,4 +1,4 @@
-import {kv} from "@vercel/kv";
+import * as redis from 'redis';
 import * as crypto from "crypto";
 import {CipherGCMTypes} from "crypto";
 import * as argon2 from "argon2";
@@ -11,6 +11,8 @@ import {
 } from "./config.js";
 
 const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
+
+const secretStore = await redis.createClient({url: process.env.REDIS_URL}).connect();
 
 export async function addSecret(params: {
     data: SecretData,
@@ -35,18 +37,15 @@ export async function addSecret(params: {
         },
     };
 
-    const secretStoreKey = `secret:${secretId}`
-    await kv.multi()
-        .json.set(secretStoreKey, '$', secret)
-        .expireat(secretStoreKey, secret.meta.expiresAt)
-        .exec();
+    const secretKey = `secret:${secretId}`;
+    await secretStore.json.set(secretKey, '$', secret);
+    await secretStore.expireAt(secretKey, secret.meta.expiresAt);
 
     return {
         id: secretId,
         password: encryptionPassword,
     };
 }
-
 
 export async function getSecretData(params: {
     id: SecretId,
@@ -55,39 +54,25 @@ export async function getSecretData(params: {
 }): Promise<SecretData | null> {
 
     const secretStoreKey = `secret:${params.id}`
-    const secret: Secret = (await kv.json.get(secretStoreKey, '$'))?.[0];
+    const secret = (await secretStore.json.get(secretStoreKey)) as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
     if (secret.passphrase || params.passphrase) {
         if (!secret.passphrase) throw new PasswordError('Unexpected passphrase');
 
         if (!params.passphrase || !await argon2.verify(secret.passphrase.hash, params.passphrase)) {
-            const passphraseAttempts = (await kv.json.numincrby(secretStoreKey, '$.passphrase.attempts', 1))[0];
+            const passphraseAttempts = (await secretStore.json.numIncrBy(secretStoreKey, '$.passphrase.attempts', 1)) as number;
             if (passphraseAttempts >= SECRET_PASSPHRASE_MAX_ATTEMPTS) {
                 console.debug('Delete Secret.data and Secret.passphrase due to too many passphrase attempts');
-                const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
-                await kv.multi()
-                    .json.del(secretStoreKey, '$.data')
-                    .json.del(secretStoreKey, '$.passphrase')
-                    .json.del(secretStoreKey, '$.meta.passphrase')
-                    .json.set(secretStoreKey, '$.meta.status', JSON.stringify('TOO_MANY_PASSPHRASE_ATTEMPTS' satisfies SecretStatus))
-                    .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
-                    .expireat(secretStoreKey, expiresAt)
-                    .exec();
+                await deleteSecret({id: params.id, status: 'TOO_MANY_PASSPHRASE_ATTEMPTS'});
             }
 
             throw new PasswordError('Invalid passphrase');
         }
     }
-    const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
-    await kv.multi()
-        .json.del(secretStoreKey, '$.data')
-        .json.del(secretStoreKey, '$.passphrase')
-        .json.del(secretStoreKey, '$.meta.passphrase')
-        .json.set(secretStoreKey, '$.meta.status', JSON.stringify('READ' satisfies SecretStatus))
-        .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
-        .expireat(secretStoreKey, expiresAt)
-        .exec();
+
+    await deleteSecret({id: params.id, status: 'READ'});
+
     return decrypt(secret.data, params.password);
 }
 
@@ -96,22 +81,22 @@ export async function getSecretMetaData(params: {
 }): Promise<SecretMetaData | null> {
 
     const secretStoreKey = `secret:${params.id}`
-
-    return (await kv.json.get(secretStoreKey, '$.meta'))?.[0];
+    return (await secretStore.json.get(secretStoreKey, {
+        path: '$.meta'
+    })) as SecretMetaData;
 }
 
 export async function deleteSecret(params: {
     id: SecretId,
+    status: SecretStatus,
 }): Promise<boolean> {
-
     const secretStoreKey = `secret:${params.id}`
-
     const expiresAt = Math.floor(Date.now() / 1000 + SECRET_TOMBSTONE_TTL); // expires in 7 days
-    await kv.multi()
-        .json.del(secretStoreKey, '$.data')
-        .json.del(secretStoreKey, '$.passphrase')
-        .json.del(secretStoreKey, '$.meta.passphrase')
-        .json.set(secretStoreKey, '$.meta.status', JSON.stringify('DELETED' satisfies SecretStatus))
+    await secretStore.multi()
+        .json.del(secretStoreKey, {path: '$.data'})
+        .json.del(secretStoreKey, {path: '$.passphrase'})
+        .json.del(secretStoreKey, {path: '$.meta.passphrase'})
+        .json.set(secretStoreKey, '$.meta.status', params.status)
         .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
         .expireat(secretStoreKey, expiresAt)
         .exec();
