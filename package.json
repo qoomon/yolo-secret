@@ -11,14 +11,14 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
     "@types/formidable": "^3.4.5",
-    "argon2": "^0.44.0",
+    "@vercel/node": "^5.3.26",
     "axios": "^1.12.2",
-    "crypto-random-string": "^5.0.0",
     "formidable": "^3.5.4",
     "humanize-duration": "^3.33.1",
+    "openpgp": "^6.2.2",
     "redis": "^5.8.3",
-    "vercel": "^48.2.0",
     "vue": "^3.5.22",
     "vue-router": "^4.5.1",
     "vuetify": "^3.10.3"

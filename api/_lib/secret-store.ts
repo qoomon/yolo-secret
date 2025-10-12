@@ -1,86 +1,70 @@
 import * as redis from 'redis';
-import * as crypto from "crypto";
-import {CipherGCMTypes} from "crypto";
-import * as argon2 from "argon2";
-import cryptoRandomString from "crypto-random-string";
-import {
-    SECRET_ID_LENGTH,
-    SECRET_PASSPHRASE_MAX_ATTEMPTS,
-    SECRET_PASSWORD_LENGTH,
-    SECRET_TOMBSTONE_TTL,
-} from "./config.js";
-
-const ENCRYPTION_ALGORITHM: CipherGCMTypes = 'aes-256-gcm';
+import {SECRET_MAX_ATTEMPTS, SECRET_TOMBSTONE_TTL} from "./config.js";
 
 const secretStore = await redis.createClient({url: process.env.REDIS_URL}).connect();
 const secretStoreKeyFor = (id: string) => `secret:${id}`;
 
 export async function addSecret(params: {
-    data: SecretData, ttl: number, passphrase?: string
-}): Promise<{ id: SecretId, password: string }> {
-    const encryptionPassword = cryptoRandomString({length: SECRET_PASSWORD_LENGTH, type: 'alphanumeric'});
-    const encryptedData = encrypt(params.data, encryptionPassword);
-    const expiresAt = ttl2ExpireAt(params.ttl);
+    id: SecretId,
+    encryptedData: string,
+    prove: string,
+    ttl: number,
+}): Promise<{ id: SecretId }> {
 
     const secret: Secret = {
-        data: encryptedData,
-        passphrase: params.passphrase ? {
-            hash: await calculateArgon2Hash(params.passphrase),
-            attempts: 0,
-        } : undefined,
+        encryptedData: params.encryptedData,
+        prove: params.prove,
         meta: {
             status: 'UNREAD',
-            expiresAt,
-            passphrase: params.passphrase ? true : undefined,
+            attemptsRemaining: SECRET_MAX_ATTEMPTS,
+            expiresAt: ttl2ExpireAt(params.ttl),
         },
     };
 
-    const secretId = cryptoRandomString({length: SECRET_ID_LENGTH, type: "alphanumeric"});
-    const secretKey = secretStoreKeyFor(secretId);
+    const secretKey = secretStoreKeyFor(params.id);
+
+    if (await secretStore.exists(secretKey)) {
+        throw new SecretStoreError('Id already exists');
+    }
+
     await secretStore.multi()
         .json.set(secretKey, '$', secret)
-        .expireAt(secretKey, expiresAt)
-        .exec()
+        .expireAt(secretKey, secret.meta.expiresAt)
+        .exec();
 
-    return {
-        id: secretId,
-        password: encryptionPassword,
-    };
+    return {id: params.id};
 }
 
-export async function getSecretData(params: {
-    id: SecretId, password?: string, passphrase?: string,
-}): Promise<SecretData | null> {
+export async function getSecretEncryptedData(params: {
+    id: SecretId,
+    prove: string,
+}): Promise<string | null> {
     const secretStoreKey = secretStoreKeyFor(params.id);
-    const secret = (await secretStore.json.get(secretStoreKey, {path: '$'}))?.[0] as Secret;
+    const secret = (await secretStore.json.get(secretStoreKey, {
+        path: '$',
+    }))?.[0] as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
-    if (secret.passphrase || params.passphrase) {
-        if (!secret.passphrase) throw new PasswordError('Unexpected passphrase');
-
-        if (!params.passphrase || !await argon2.verify(secret.passphrase.hash, params.passphrase)) {
-            const passphraseAttempts = (await secretStore.json.numIncrBy(secretStoreKey, '$.passphrase.attempts', 1))[0] as number;
-            if (passphraseAttempts >= SECRET_PASSPHRASE_MAX_ATTEMPTS) {
-                console.debug('Delete Secret.data and Secret.passphrase due to too many passphrase attempts');
-                await deleteSecret({id: params.id, status: 'TOO_MANY_PASSPHRASE_ATTEMPTS'});
-            }
-
-            throw new PasswordError('Invalid passphrase');
+    if (secret.prove !== params.prove) {
+        const attemptsRemaining = (await secretStore.json.numIncrBy(secretStoreKey, '$.meta.attemptsRemaining', -1))[0] ?? 0;
+        if (attemptsRemaining <= 0) {
+            await deleteSecret({id: params.id, status: 'TOO_MANY_ATTEMPTS'});
         }
+
+        throw new SecretStoreError('Invalid prove');
     }
 
     await deleteSecret({id: params.id, status: 'READ'});
 
-    return decrypt(secret.data, params.password);
+    return secret.encryptedData;
 }
 
 export async function getSecretMetaData(params: {
     id: SecretId,
 }): Promise<SecretMetaData | null> {
-
     const secretStoreKey = secretStoreKeyFor(params.id);
     return (await secretStore.json.get(secretStoreKey, {
-        path: '$.meta'
+        path: '$.meta',
     }))?.[0] as SecretMetaData;
 }
 
@@ -88,12 +72,13 @@ export async function deleteSecret(params: {
     id: SecretId,
     status: SecretStatus,
 }): Promise<boolean> {
+    console.debug(`Delete secret ${params.id} due to ${params.status}`);
+
     const secretStoreKey = secretStoreKeyFor(params.id);
     const expiresAt = ttl2ExpireAt(SECRET_TOMBSTONE_TTL);
     await secretStore.multi()
-        .json.del(secretStoreKey, {path: '$.data'})
-        .json.del(secretStoreKey, {path: '$.passphrase'})
-        .json.del(secretStoreKey, {path: '$.meta.passphrase'})
+        .json.del(secretStoreKey, {path: '$.encryptedData'})
+        .json.del(secretStoreKey, {path: '$.prove'})
         .json.set(secretStoreKey, '$.meta.status', params.status)
         .json.set(secretStoreKey, '$.meta.expiresAt', expiresAt)
         .expireAt(secretStoreKey, expiresAt)
@@ -108,76 +93,23 @@ function ttl2ExpireAt(ttl: number) {
 
 // ----------------------------------------------------------------------------
 
-function encrypt(data: SecretData, password: string) {
-    const keySalt = crypto.randomBytes(16);
-    const key = crypto.scryptSync(password, keySalt, 32);
-    const iv = crypto.randomBytes(16);
-
-    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-
-    const dataString = JSON.stringify(data);
-    const encryptedData = cipher.update(dataString, 'utf8', 'base64')
-        + cipher.final('base64');
-
-    return [
-        keySalt.toString('base64'),
-        iv.toString('base64'),
-        encryptedData,
-        cipher.getAuthTag().toString('base64'),
-    ].join(':');
-}
-
-function decrypt(encryptedValue: string, password: string): SecretData {
-    const encryptedValueSplit = encryptedValue.split(':');
-    if (encryptedValueSplit.length !== 4) throw new Error('Invalid encrypted value');
-
-    const keySalt = Buffer.from(encryptedValueSplit[0], 'base64');
-    const key = crypto.scryptSync(password, keySalt, 32);
-    const iv = Buffer.from(encryptedValueSplit[1], 'base64');
-    const encryptedData = encryptedValueSplit[2];
-    const authTag = Buffer.from(encryptedValueSplit[3], 'base64');
-
-    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-
-    const dataString = decipher.update(encryptedData, 'base64', 'utf8')
-        + decipher.final('utf8')
-    return JSON.parse(dataString);
-}
-
-async function calculateArgon2Hash(password: string) {
-    return await argon2.hash(password, {
-        type: argon2.argon2id,
-        hashLength: 32,        // Hash output length in bytes
-    })
-}
-
-// ----------------------------------------------------------------------------
-
 export type SecretId = string;
-export type SecretStatus = 'UNREAD' | 'READ' | 'TOO_MANY_PASSPHRASE_ATTEMPTS' | 'DELETED'
+export type SecretStatus = 'UNREAD' | 'READ' | 'TOO_MANY_ATTEMPTS' | 'DELETED'
 export type Secret = {
-    data?: string, // encrypted and base64 encoded SecretData
-    passphrase?: { hash: string, attempts: number },
+    encryptedData: string,
+    prove: string,
     meta: SecretMetaData,
 };
-export type SecretData = {
-    type: 'text',
-    data: string,
-} | {
-    type: 'file',
-    name: string,
-    data: string,
-};
+
 export type SecretMetaData = {
     status: SecretStatus,
     expiresAt: number,
-    passphrase?: boolean,
+    attemptsRemaining: number,
 }
 
-export class PasswordError extends Error {
+export class SecretStoreError extends Error {
     constructor(message?: string) {
         super(message);
-        this.name = 'PasswordError';
+        this.name = 'SecretStoreError';
     }
 }

@@ -9,22 +9,18 @@ This is a web app to share secrets in an easy but secure way.
 - Secrets are deleted once they have been read
 - Secrets can be either plain **Text** or a **File**
 - Secrets have an expiration time (up to 14 days)
-- Secrets are encrypted at rest (aes-256-gcm)
-- Secrets can be protected by a passphrase in additon to the secret id
+- Secrets are encrypted as an PGP message on the client side
 
 ## Workflow
 - Upload a Secret to create a Secret URL
-    - Secret Share URL example: `https://yolo-secret.vercel.app/#AfNOis3I2GwIytTDxJvu6UW9e7rm6HGF` 
+    - Secret Share URL example: `https://yolo.qoo.monster/ID#PASSPHRASE` 
 - Send Secret URL to recipient
-- The recipient then can open then Secret URL and hit the REVEAL button
+- The recipient open the Secret URL and hit the REVEAL button
     - Once the secret is revealed it's already deleted and can not be accessed again  
 
 ##
 
 ## Development
-
-### TODO
-- Add a passphrase generator
 
 ### Run Local
 ```sh

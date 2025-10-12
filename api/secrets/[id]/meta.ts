@@ -1,7 +1,6 @@
 import type {VercelRequest, VercelResponse} from '@vercel/node';
 import * as secretStore from "../../_lib/secret-store.js";
 import {firstValueOf} from "../../_lib/utils.js";
-import {SECRET_ID_LENGTH} from "../../_lib/config";
 
 export default async (request: VercelRequest, response: VercelResponse) => {
     switch (request.method) {
@@ -27,6 +26,7 @@ async function handleGetSecretMetaData(request: VercelRequest, response: VercelR
         return;
     }
 
+    // TODO explicit response mapping
     response.status(200)
         .send(secretMetaData);
 }

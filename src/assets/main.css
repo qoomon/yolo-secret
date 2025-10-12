@@ -2,25 +2,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Flow+Block&display=swap');
 
 #app {
-  margin: 0 auto;
-  padding: 0;
+    margin: 0 auto;
+    padding: 0;
 }
 
 input[type="password"] {
-  font-family: Flow Block, cursive;
+    font-family: Flow Block, cursive;
+    letter-spacing: -0.1em;
 }
 
-.textarea-masking textarea{
-  font-family: 'Flow Block', cursive;
-  filter: opacity(0.8);
+.textarea-masking textarea {
+    font-family: 'Flow Block', cursive;
+    filter: opacity(0.8);
 }
 
 .v-textarea--auto-grow .v-field__input {
-  overflow-y: scroll;
-  -ms-overflow-style: none; /* Internet Explorer 10+ */
-  scrollbar-width: none; /* Firefox */
+    overflow-y: scroll;
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+    scrollbar-width: none; /* Firefox */
 }
 
 .v-textarea--auto-grow .v-field__input::-webkit-scrollbar {
-  display: none; /* Safari and Chrome */
+    display: none; /* Safari and Chrome */
 }

@@ -2,13 +2,13 @@
 import {ref} from "vue";
 import {copyToClipboard} from "@/lib/utils";
 
-const emit = defineEmits(['dismiss'])
+const emit = defineEmits(['dismiss']);
 const props = defineProps<{
     url: string,
-}>()
+}>();
 
 function onDismiss() {
-    emit('dismiss')
+    emit('dismiss');
 }
 
 const snackbar = ref({
