@@ -13,7 +13,7 @@
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
     "@types/formidable": "^3.4.5",
-    "@vercel/node": "^5.3.26",
+    "@vercel/node": "^5.4.1",
     "axios": "^1.12.2",
     "formidable": "^3.5.4",
     "humanize-duration": "^3.33.1",
