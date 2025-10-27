@@ -21,7 +21,7 @@
     "redis": "^5.9.0",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3",
-    "vuetify": "^3.10.3"
+    "vuetify": "^3.10.7"
   },
   "devDependencies": {
     "@mdi/font": "^7.4.47",
