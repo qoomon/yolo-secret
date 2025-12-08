@@ -16,7 +16,7 @@
     "@vercel/node": "^5.5.15",
     "axios": "^1.13.2",
     "formidable": "^3.5.4",
-    "humanize-duration": "^3.33.1",
+    "humanize-duration": "^3.33.2",
     "openpgp": "^6.2.2",
     "redis": "^5.10.0",
     "vue": "^3.5.25",
