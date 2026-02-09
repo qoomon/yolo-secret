@@ -14,7 +14,7 @@
     "@paralleldrive/cuid2": "^3.3.0",
     "@types/formidable": "^3.4.5",
     "@vercel/node": "^5.5.33",
-    "axios": "^1.13.4",
+    "axios": "^1.13.5",
     "formidable": "^3.5.4",
     "humanize-duration": "^3.33.2",
     "openpgp": "^6.3.0",
