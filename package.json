@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^3.3.0",
-    "@types/formidable": "^3.4.5",
+    "@types/formidable": "^3.4.7",
     "@vercel/node": "^5.6.6",
     "axios": "^1.13.5",
     "formidable": "^3.5.4",
