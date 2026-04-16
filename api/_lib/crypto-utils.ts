@@ -7,8 +7,11 @@ export function timingSafeProveEqual(a: string, b: string): boolean {
     const encodedA = Buffer.from(a);
     const encodedB = Buffer.from(b);
     if (encodedA.length !== encodedB.length) {
-        // Perform a dummy comparison to avoid leaking length info through timing
-        timingSafeEqual(encodedA, encodedA);
+        // Compare encodedA against encodedB padded/truncated to same length
+        // to consume constant time regardless of length mismatch
+        const paddedB = Buffer.alloc(encodedA.length);
+        encodedB.copy(paddedB, 0, 0, Math.min(encodedA.length, encodedB.length));
+        timingSafeEqual(encodedA, paddedB);
         return false;
     }
     return timingSafeEqual(encodedA, encodedB);

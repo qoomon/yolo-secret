@@ -67,10 +67,10 @@ export function generatePassword(length: number) {
     // We find the largest multiple of charset.length that fits in a Uint32
     // and reject any random values >= that threshold.
     const maxValid = Math.floor(0x100000000 / charset.length) * charset.length;
-    const batchSize = 16384; // getRandomValues limit: 65536 bytes = 16384 Uint32 values
+    const maxUint32BatchSize = 16384; // getRandomValues limit: 65536 bytes = 16384 Uint32 values
     const result: string[] = [];
     while (result.length < length) {
-        const needed = Math.min(length - result.length, batchSize);
+        const needed = Math.min(length - result.length, maxUint32BatchSize);
         const randomValues = crypto.getRandomValues(new Uint32Array(needed));
         for (const randomNumber of randomValues) {
             if (randomNumber >= maxValid) continue; // reject to avoid bias
