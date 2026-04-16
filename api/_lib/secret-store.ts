@@ -46,7 +46,8 @@ export async function getSecretEncryptedData(params: {
     }))?.[0] as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
-    if (!timingSafeEqual(secret.prove, params.prove)) {
+    // https://evanhahn.com/crypto-timingsafeequal-with-strings/
+    if (!timingSafeEqual(Buffer.from( secret.prove, "utf16le"), Buffer.from(params.prove, "utf16le"))) {
         const attemptsRemaining = (await secretStore.json.numIncrBy(secretStoreKey, '$.meta.attemptsRemaining', -1))[0] ?? 0;
         if (attemptsRemaining <= 0) {
             await deleteSecret({id: params.id, status: 'TOO_MANY_ATTEMPTS'});
