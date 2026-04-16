@@ -47,6 +47,7 @@ export async function getSecretEncryptedData(params: {
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
     const encoder = new TextEncoder();
+    // https://developers.cloudflare.com/workers/examples/protect-against-timing-attacks/
     if (!timingSafeEqual(encoder.encode(secret.prove), encoder.encode(params.prove))) {
         const attemptsRemaining = (await secretStore.json.numIncrBy(secretStoreKey, '$.meta.attemptsRemaining', -1))[0] ?? 0;
         if (attemptsRemaining <= 0) {
