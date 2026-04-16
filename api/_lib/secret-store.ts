@@ -1,5 +1,6 @@
 import * as redis from 'redis';
 import {SECRET_MAX_ATTEMPTS, SECRET_TOMBSTONE_TTL} from "./config.js";
+import {timingSafeEqual} from "crypto";
 
 const secretStore = await redis.createClient({url: process.env.REDIS_URL}).connect();
 const secretStoreKeyFor = (id: string) => `secret:${id}`;
@@ -45,7 +46,7 @@ export async function getSecretEncryptedData(params: {
     }))?.[0] as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
-    if (secret.prove !== params.prove) {
+    if (!timingSafeEqual(secret.prove, params.prove)) {
         const attemptsRemaining = (await secretStore.json.numIncrBy(secretStoreKey, '$.meta.attemptsRemaining', -1))[0] ?? 0;
         if (attemptsRemaining <= 0) {
             await deleteSecret({id: params.id, status: 'TOO_MANY_ATTEMPTS'});
