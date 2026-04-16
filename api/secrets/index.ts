@@ -33,18 +33,22 @@ async function handlePostSecret(request: VercelRequest, response: VercelResponse
     if (request.body.prove?.length > SECRET_PROVE_MAX_CHARS) return response.status(400)
         .send({error: `prove field must be less than ${SECRET_PROVE_MAX_CHARS} characters long`});
 
-    if (request.body.ttl < SECRET_TTL_MIN) return response.status(400)
+    const ttl = request.body.ttl != null
+        ? Number(request.body.ttl)
+        : SECRET_TTL_DEFAULT;
+
+    if (!Number.isFinite(ttl)) return response.status(400)
+        .send({error: `ttl value must be a valid number`});
+    if (ttl < SECRET_TTL_MIN) return response.status(400)
         .send({error: `ttl value must be greater than ${SECRET_TTL_MIN}`});
-    if (request.body.ttl > SECRET_TTL_MAX) return response.status(400)
+    if (ttl > SECRET_TTL_MAX) return response.status(400)
         .send({error: `ttl value must be less than ${SECRET_TTL_MAX}`});
 
     const secret = await secretStore.addSecret({
         id: request.body.id,
         encryptedData: request.body.encryptedData,
         prove: request.body.prove,
-        ttl: request.body.ttl
-            ? Number.parseInt(request.body.ttl)
-            : SECRET_TTL_DEFAULT,
+        ttl,
     });
 
     return response.status(201)

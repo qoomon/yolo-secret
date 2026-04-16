@@ -53,7 +53,6 @@ export async function decrypt(armoredMessage: string, password: string) {
     });
 }
 
-// TODO use stronger password generator
 export function generatePassword(length: number) {
     if (length < 1) {
         throw new Error("Password length must be a positive integer.");
@@ -64,9 +63,18 @@ export function generatePassword(length: number) {
     const digits = '0123456789';
     const charset = uppercase + lowercase + digits;
 
-    const randomValues = crypto.getRandomValues(new Uint32Array(length));
-    return Array.from(randomValues).map((randomNumber) => {
-        const randomIndex = randomNumber % charset.length;
-        return charset[randomIndex];
-    }).join('');
+    // Use rejection sampling to avoid modulo bias.
+    // We find the largest multiple of charset.length that fits in a Uint32
+    // and reject any random values >= that threshold.
+    const maxValid = Math.floor(0x100000000 / charset.length) * charset.length;
+    const result: string[] = [];
+    while (result.length < length) {
+        const randomValues = crypto.getRandomValues(new Uint32Array(length - result.length));
+        for (const randomNumber of randomValues) {
+            if (randomNumber >= maxValid) continue; // reject to avoid bias
+            result.push(charset[randomNumber % charset.length]);
+            if (result.length >= length) break;
+        }
+    }
+    return result.join('');
 }

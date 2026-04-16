@@ -1,4 +1,5 @@
 import * as redis from 'redis';
+import {timingSafeEqual} from 'crypto';
 import {SECRET_MAX_ATTEMPTS, SECRET_TOMBSTONE_TTL} from "./config.js";
 
 const secretStore = await redis.createClient({url: process.env.REDIS_URL}).connect();
@@ -45,7 +46,7 @@ export async function getSecretEncryptedData(params: {
     }))?.[0] as Secret;
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
-    if (secret.prove !== params.prove) {
+    if (!timingSafeProveEqual(secret.prove, params.prove)) {
         const attemptsRemaining = (await secretStore.json.numIncrBy(secretStoreKey, '$.meta.attemptsRemaining', -1))[0] ?? 0;
         if (attemptsRemaining <= 0) {
             await deleteSecret({id: params.id, status: 'TOO_MANY_ATTEMPTS'});
@@ -89,6 +90,20 @@ export async function deleteSecret(params: {
 
 function ttl2ExpireAt(ttl: number) {
     return Math.floor(Date.now() / 1000 + ttl);
+}
+
+/**
+ * Compares two proof strings in constant time to prevent timing attacks.
+ */
+function timingSafeProveEqual(a: string, b: string): boolean {
+    const encodedA = Buffer.from(a);
+    const encodedB = Buffer.from(b);
+    if (encodedA.length !== encodedB.length) {
+        // Perform a dummy comparison to avoid leaking length info through timing
+        timingSafeEqual(encodedA, encodedA);
+        return false;
+    }
+    return timingSafeEqual(encodedA, encodedB);
 }
 
 // ----------------------------------------------------------------------------
