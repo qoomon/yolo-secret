@@ -19,7 +19,7 @@
     "formidable": "^3.5.4",
     "humanize-duration": "^3.33.2",
     "openpgp": "^6.3.1",
-    "redis": "^6.0.1",
+    "redis": "^6.1.0",
     "vue": "^3.5.39",
     "vue-router": "^5.1.0",
     "vuetify": "^4.1.2"
