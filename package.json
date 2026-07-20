@@ -20,7 +20,7 @@
     "humanize-duration": "^3.34.0",
     "openpgp": "^6.3.1",
     "redis": "^6.1.0",
-    "vue": "^3.5.39",
+    "vue": "^3.5.40",
     "vue-router": "^5.1.0",
     "vuetify": "^4.1.4"
   },
