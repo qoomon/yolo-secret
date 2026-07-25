@@ -1,4 +1,4 @@
-# YOLO Secrets [![starline](https://starlines.qoo.monster/assets/qoomon/yolo-secret)](https://github.com/qoomon/starlines)
+# YOLO Secrets [![starline](https://raw.githubusercontent.com/qoomon/qoomon/refs/heads/main/starlines/qoomon/yolo-secret/starline.svg)](https://github.com/qoomon/starlines)
 This is a web app to share secrets in an easy but secure way. 
 
 **Secrets can be read only once!**
