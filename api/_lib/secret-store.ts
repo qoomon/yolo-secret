@@ -24,14 +24,13 @@ export async function addSecret(params: {
 
     const secretKey = secretStoreKeyFor(params.id);
 
-    if (await secretStore.exists(secretKey)) {
+    // atomic create-if-not-exists, avoids a race between a separate exists check and write
+    const created = await secretStore.json.set(secretKey, '$', secret, {condition: 'NX'});
+    if (created === null) {
         throw new SecretStoreError('Id already exists');
     }
 
-    await secretStore.multi()
-        .json.set(secretKey, '$', secret)
-        .expireAt(secretKey, secret.meta.expiresAt)
-        .exec();
+    await secretStore.expireAt(secretKey, secret.meta.expiresAt);
 
     return {id: params.id};
 }
@@ -47,8 +46,11 @@ export async function getSecretEncryptedData(params: {
     if (!secret || secret.meta.status !== 'UNREAD') return null;
 
     const encoder = new TextEncoder();
+    const secretProveBytes = encoder.encode(secret.prove);
+    const proveBytes = encoder.encode(params.prove);
+    // timingSafeEqual throws on mismatched lengths, so compare lengths first (length isn't secret)
     // https://developers.cloudflare.com/workers/examples/protect-against-timing-attacks/
-    if (!timingSafeEqual(encoder.encode(secret.prove), encoder.encode(params.prove))) {
+    if (secretProveBytes.length !== proveBytes.length || !timingSafeEqual(secretProveBytes, proveBytes)) {
         const attemptsRemaining = (await secretStore.json.numIncrBy(secretStoreKey, '$.meta.attemptsRemaining', -1))[0] ?? 0;
         if (attemptsRemaining <= 0) {
             await deleteSecret({id: params.id, status: 'TOO_MANY_ATTEMPTS'});
