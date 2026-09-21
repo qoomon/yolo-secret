@@ -15,7 +15,7 @@
     "@paralleldrive/cuid2": "^3.3.0",
     "@vercel/node": "^5.10.2",
     "axios": "^1.20.0",
-    "humanize-duration": "^3.34.1",
+    "humanize-duration": "^3.35.0",
     "openpgp": "^6.3.1",
     "redis": "^6.2.1",
     "vue": "^3.5.42",
