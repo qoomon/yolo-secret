@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@mdi/font": "^7.4.47",
-    "@tsconfig/node18": "^18.2.7",
+    "@tsconfig/node18": "^18.2.8",
     "@types/humanize-duration": "^3.27.4",
     "@types/node": "^26.6.6",
     "@vitejs/plugin-vue": "^6.0.11",
